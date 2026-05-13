@@ -101,7 +101,7 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-4">
           <span className="hidden sm:inline text-xs font-mono text-muted">
-            v0.2.0
+            v0.3.1
           </span>
           <ThemeToggle />
         </div>

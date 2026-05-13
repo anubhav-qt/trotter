@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 Trotter v0.3.1
+### The Advanced AI-Powered Technical Analysis & Research Engine
 
-## Getting Started
+Trotter is a professional-grade trading assistant that leverages Multi-Modal AI, Real-time Web Research, and Computer Vision to provide deep, actionable insights into any stock ticker. Designed for the modern trader, Trotter bridges the gap between raw data and high-conviction decision making.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## ✨ Key Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 👁️ Computer Vision "Deep Dive"
+Harness the power of Gemini 2.5 Flash to "see" your charts.
+- **Pattern Recognition**: Automatically identifies technical patterns like Bullish Engulfing, Hammers, and Head & Shoulders.
+- **Spatial Awareness**: Highlights detected patterns with accurate bounding boxes directly on the UI.
+- **Dynamic Score Overwrites**: Visual findings instantly update the entire dashboard's scores, verdicts, and price targets in real-time.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 🧠 Multi-Horizon Analysis
+Why settle for one perspective? Trotter evaluates every stock across three distinct timeframes simultaneously:
+- **Weekly**: Optimized for swing trading (1-5 days).
+- **Monthly**: Focused on medium-term trends (2-8 weeks).
+- **Long-term**: Geared towards fundamental value (6mo+).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 📰 Deep Sentiment Analysis (FinBERT)
+Aggregates news from **Yahoo Finance** and **Google News** for a full 30-day window. Every article is classified as Positive, Negative, or Neutral using the **FinBERT** transformer model, providing a quantified view of market sentiment.
 
-## Learn More
+### 🌐 Live Industry Grounding (Tavily)
+Real-time web research to ground AI predictions in current market reality:
+- **Industry P/E Comparison**: Uses Tavily Search to retrieve up-to-date average P/E ratios for the stock's sector.
+- **Grounded Valuations**: Ensures price targets and investment scores are backed by the latest industry benchmarks.
 
-To learn more about Next.js, take a look at the following resources:
+### 📊 Professional Technical Charting
+- **Standard Aesthetics**: Clean, Red/Green candlestick rendering.
+- **Bollinger Bands**: Integrated 20-period bands (SMA + StdDev) for identifying overbought/oversold levels.
+- **Volume Pane**: Visualizes buying and selling pressure directly on the chart.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🛠️ Tech Stack
 
-## Deploy on Vercel
+- **Framework**: [Next.js](https://nextjs.org/) (App Router, Turbopack)
+- **AI Models**:
+  - **Gemini 2.5 Flash**: Multi-modal vision and high-speed technical scoring.
+  - **FinBERT**: Deep learning sentiment analysis for financial text.
+- **APIs**:
+  - **Tavily Search**: AI-optimized web retrieval for live market grounding.
+  - **Yahoo Finance**: Real-time quotes, historical data, and RSS news feeds.
+- **Styling**: Minimalist, high-contrast Dark Mode with Vanilla CSS.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+ 
+- A Google AI (Gemini) API Key
+- A Tavily API Key
+
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/anubhav-qt/trotter.git
+   cd trotter
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Set up Environment Variables**:
+   Create a `.env.local` file in the root directory:
+   ```env
+   GOOGLE_API_KEY=your_gemini_key_here
+   TAVILY_API_KEY=your_tavily_key_here
+   ```
+
+4. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
+
+5. **Open the App**:
+   Navigate to [http://localhost:3000](http://localhost:3000).
+
+---
+
+## 📈 Roadmap
+
+- [ ] **Native DL Scoring Model**: Implementing a custom PyTorch/TensorFlow model for native pattern scoring.
+- [ ] **Leaderboard**: Background task to track and rank the top "strong buy" opportunities in the Indian and Global markets.
+- [ ] **Custom Indicators**: Adding RSI, MACD, and EMA cross-overlays to the vision engine.
+
+---
+
+## ⚖️ Disclaimer
+*Trotter is an AI-powered research tool. All information provided is for educational purposes only and does not constitute financial advice. Always perform your own due diligence before making investment decisions.*

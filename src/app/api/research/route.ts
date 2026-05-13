@@ -3,7 +3,7 @@ import YahooFinance from 'yahoo-finance2'
 import { classifyNews } from '@/lib/finbert'
 import { fetchTickerNews } from '@/lib/news'
 import { createLLM, InvestmentAnalysisSchema, buildScoringPrompt } from '@/lib/llm'
-import { search } from 'duck-duck-scrape'
+import { tavily } from '@tavily/core'
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] })
 export const dynamic = 'force-dynamic'
@@ -86,8 +86,9 @@ export async function GET(request: NextRequest) {
         
         let searchContext = ''
         try {
-          const searchRes = await search(`${symbol} stock industry sector average P/E ratio valuation`, { safeSearch: 1 })
-          searchContext = searchRes.results.slice(0, 5).map(r => r.title + ': ' + r.description).join('\n')
+          const tvly = tavily({ apiKey: process.env.TAVILY_API_KEY })
+          const searchRes = await tvly.search(`${symbol} stock industry sector average P/E ratio valuation`, { searchDepth: 'basic', maxResults: 5 })
+          searchContext = searchRes.results.map(r => r.title + ': ' + r.content).join('\n')
         } catch (err) {
           console.warn('Web search failed:', err)
         }

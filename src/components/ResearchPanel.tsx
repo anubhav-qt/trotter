@@ -59,7 +59,7 @@ function formatBigNum(n: number | null): string {
   return n.toLocaleString()
 }
 
-function ScoreGauge({ score, verdict, reasoning, targetPrice }: { score: number; verdict?: string; reasoning?: string; targetPrice?: number | null }) {
+function ScoreGauge({ score, verdict, reasoning, targetPrice, currency }: { score: number; verdict?: string; reasoning?: string; targetPrice?: number | null; currency?: string }) {
   const barWidth = `${score}%`
   const label = verdict || (score >= 75 ? 'STRONG BUY' : score >= 60 ? 'BUY' : score >= 45 ? 'HOLD' : score >= 30 ? 'CAUTIOUS' : 'AVOID')
   return (
@@ -74,7 +74,7 @@ function ScoreGauge({ score, verdict, reasoning, targetPrice }: { score: number;
       {targetPrice != null && (
         <div className="mb-4">
           <span className="text-xs font-mono text-muted uppercase tracking-wider">Est. Target Price: </span>
-          <span className="text-sm font-mono font-bold text-foreground">${formatNum(targetPrice)}</span>
+          <span className="text-sm font-mono font-bold text-foreground">{currency === 'USD' ? '$' : currency} {formatNum(targetPrice)}</span>
         </div>
       )}
       <div className="w-full h-2 bg-background rounded-full overflow-hidden border border-border mb-4">
@@ -209,6 +209,7 @@ export function ResearchPanel({ logs, result, isLoading, error, goal }: Research
               verdict={localAnalyses[goal].verdict} 
               reasoning={localAnalyses[goal].reasoning} 
               targetPrice={localAnalyses[goal].targetPrice}
+              currency={result.quote.currency}
             />
           )}
 
@@ -246,9 +247,9 @@ export function ResearchPanel({ logs, result, isLoading, error, goal }: Research
               if (localAnalyses) {
                 // Merge the updated scores and target prices into the existing breakdown
                 setLocalAnalyses({
-                  weekly: { ...localAnalyses.weekly, score: updated.weekly.score, verdict: updated.weekly.verdict, targetPrice: updated.weekly.targetPrice },
-                  monthly: { ...localAnalyses.monthly, score: updated.monthly.score, verdict: updated.monthly.verdict, targetPrice: updated.monthly.targetPrice },
-                  longterm: { ...localAnalyses.longterm, score: updated.longterm.score, verdict: updated.longterm.verdict, targetPrice: updated.longterm.targetPrice },
+                  weekly: { ...localAnalyses.weekly, score: updated.weekly.score, verdict: updated.weekly.verdict, reasoning: updated.weekly.reasoning, targetPrice: updated.weekly.targetPrice },
+                  monthly: { ...localAnalyses.monthly, score: updated.monthly.score, verdict: updated.monthly.verdict, reasoning: updated.monthly.reasoning, targetPrice: updated.monthly.targetPrice },
+                  longterm: { ...localAnalyses.longterm, score: updated.longterm.score, verdict: updated.longterm.verdict, reasoning: updated.longterm.reasoning, targetPrice: updated.longterm.targetPrice },
                 })
               }
             }}

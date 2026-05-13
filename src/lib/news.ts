@@ -9,7 +9,7 @@ export interface NewsArticle {
  * Fetches recent, ticker-specific news from Yahoo Finance RSS feed.
  * This returns news that is directly about the stock, not generic search results.
  */
-export async function fetchTickerNews(symbol: string, maxAgeDays: number = 14): Promise<NewsArticle[]> {
+export async function fetchTickerNews(symbol: string, maxAgeDays: number = 30): Promise<NewsArticle[]> {
   const articles: NewsArticle[] = []
   const cutoff = Date.now() - maxAgeDays * 86400000
 
@@ -40,39 +40,37 @@ export async function fetchTickerNews(symbol: string, maxAgeDays: number = 14): 
   }
 
   // Strategy 2: Google News RSS (broader coverage, still ticker-specific)
-  if (articles.length < 5) {
-    try {
-      const googleUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(symbol + ' stock')}&hl=en-US&gl=US&ceid=US:en`
-      const res = await fetch(googleUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        signal: AbortSignal.timeout(8000),
-      })
-      if (res.ok) {
-        const xml = await res.text()
-        const items = parseRSSItems(xml)
-        const existingTitles = new Set(articles.map(a => a.title.toLowerCase()))
-        for (const item of items) {
-          const pubDate = new Date(item.pubDate).getTime()
-          if (pubDate >= cutoff && !existingTitles.has(item.title.toLowerCase())) {
-            articles.push({
-              title: item.title,
-              link: item.link,
-              publisher: item.source || extractPublisher(item.link),
-              publishedAt: new Date(item.pubDate).toISOString(),
-            })
-          }
-          if (articles.length >= 20) break
+  try {
+    const googleUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(symbol + ' stock')}&hl=en-US&gl=US&ceid=US:en`
+    const res = await fetch(googleUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (res.ok) {
+      const xml = await res.text()
+      const items = parseRSSItems(xml)
+      const existingTitles = new Set(articles.map(a => a.title.toLowerCase()))
+      for (const item of items) {
+        const pubDate = new Date(item.pubDate).getTime()
+        if (pubDate >= cutoff && !existingTitles.has(item.title.toLowerCase())) {
+          articles.push({
+            title: item.title,
+            link: item.link,
+            publisher: item.source || extractPublisher(item.link),
+            publishedAt: new Date(item.pubDate).toISOString(),
+          })
         }
+        if (articles.length >= 40) break // Increased cap since we combine both
       }
-    } catch {
-      // Google News also failed
     }
+  } catch {
+    // Google News failed
   }
 
   // Sort by most recent first
   articles.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
 
-  return articles.slice(0, 20)
+  return articles.slice(0, 40)
 }
 
 function parseRSSItems(xml: string): Array<{ title: string; link: string; pubDate: string; source: string }> {

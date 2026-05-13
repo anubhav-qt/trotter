@@ -15,9 +15,9 @@ const DeepDiveSchema = z.object({
     xmax: z.number().describe('Right edge of the bounding box (0-1000 scale). 1000 is right.'),
   }).describe('The exact spatial coordinates bounding the identified pattern on the provided chart.'),
   updatedAnalysis: z.object({
-    weekly: z.object({ score: z.number(), verdict: z.string(), targetPrice: z.number().nullable() }),
-    monthly: z.object({ score: z.number(), verdict: z.string(), targetPrice: z.number().nullable() }),
-    longterm: z.object({ score: z.number(), verdict: z.string(), targetPrice: z.number().nullable() }),
+    weekly: z.object({ score: z.number(), verdict: z.string(), reasoning: z.string(), targetPrice: z.number().nullable() }),
+    monthly: z.object({ score: z.number(), verdict: z.string(), reasoning: z.string(), targetPrice: z.number().nullable() }),
+    longterm: z.object({ score: z.number(), verdict: z.string(), reasoning: z.string(), targetPrice: z.number().nullable() }),
   }).optional().describe('If the visual pattern provides new insight, return updated scores, verdicts, and estimated target prices for the 3 time horizons.')
 })
 

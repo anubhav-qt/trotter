@@ -46,8 +46,12 @@ export function buildScoringPrompt(
 ): string {
   return `Score ${symbol} (${name}) for 3 different trading horizons: Weekly (1-5d), Monthly (2-8w), and Long-term (6mo+). 0-100 scale for each.
   
-Identify the industry P/E based on this web search context:
+Identify the industry average P/E for ${symbol}. 
+If the following web search context contains the answer, use it:
+[SEARCH CONTEXT]
 ${searchContext}
+[END SEARCH CONTEXT]
+If the search context is empty or unhelpful, use your vast internal knowledge of the stock market to estimate the current average P/E ratio for ${symbol}'s industry/sector.
 
 DATA:
 Price=${quoteData.price} ${quoteData.currency}, Chg=${quoteData.change} (${quoteData.changePercent}%)

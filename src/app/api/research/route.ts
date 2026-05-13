@@ -3,6 +3,7 @@ import YahooFinance from 'yahoo-finance2'
 import { classifyNews } from '@/lib/finbert'
 import { fetchTickerNews } from '@/lib/news'
 import { createLLM, InvestmentAnalysisSchema, buildScoringPrompt } from '@/lib/llm'
+import { search } from 'duck-duck-scrape'
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] })
 export const dynamic = 'force-dynamic'
@@ -80,8 +81,18 @@ export async function GET(request: NextRequest) {
           }
         })
 
-        // 6. Gemini scoring (Triple Goal)
-        send('status', { message: `Sending data to Gemini 2.5 Flash for multi-horizon scoring...`, step: 6, total: 8 })
+        // 6. Gemini scoring (Triple Goal) with Web Search
+        send('status', { message: `Performing live web search for industry P/E context...`, step: 6, total: 9 })
+        
+        let searchContext = ''
+        try {
+          const searchRes = await search(`${symbol} stock industry sector average P/E ratio valuation`, { safeSearch: 1 })
+          searchContext = searchRes.results.slice(0, 5).map(r => r.title + ': ' + r.description).join('\n')
+        } catch (err) {
+          console.warn('Web search failed:', err)
+        }
+
+        send('status', { message: `Sending data to Gemini 2.5 Flash for multi-horizon scoring...`, step: 7, total: 9 })
         const quoteData = {
           price: quote.regularMarketPrice ?? null,
           change: quote.regularMarketChange ?? null,
@@ -114,6 +125,7 @@ export async function GET(request: NextRequest) {
           monthly: fallbackBase,
           longterm: fallbackBase
         }
+        let industryPE: number | null = null;
 
         try {
           const llm = createLLM()
@@ -121,7 +133,8 @@ export async function GET(request: NextRequest) {
           const prompt = buildScoringPrompt(
             symbol, (quote.shortName || quote.longName || symbol) as string,
             quoteData, histSummary,
-            { positive: classified.positive.length, negative: classified.negative.length, neutral: classified.neutral.length }
+            { positive: classified.positive.length, negative: classified.negative.length, neutral: classified.neutral.length },
+            searchContext
           )
           const result = await scorer.invoke(prompt)
           
@@ -135,10 +148,11 @@ export async function GET(request: NextRequest) {
           })
 
           analyses = {
-            weekly: { score: result.weekly.score, verdict: result.weekly.verdict, reasoning: result.weekly.reasoning, breakdown: mapBreakdown(result.weekly.breakdown) },
-            monthly: { score: result.monthly.score, verdict: result.monthly.verdict, reasoning: result.monthly.reasoning, breakdown: mapBreakdown(result.monthly.breakdown) },
-            longterm: { score: result.longterm.score, verdict: result.longterm.verdict, reasoning: result.longterm.reasoning, breakdown: mapBreakdown(result.longterm.breakdown) },
+            weekly: { score: result.weekly.score, verdict: result.weekly.verdict, reasoning: result.weekly.reasoning, targetPrice: result.weekly.targetPrice, breakdown: mapBreakdown(result.weekly.breakdown) },
+            monthly: { score: result.monthly.score, verdict: result.monthly.verdict, reasoning: result.monthly.reasoning, targetPrice: result.monthly.targetPrice, breakdown: mapBreakdown(result.monthly.breakdown) },
+            longterm: { score: result.longterm.score, verdict: result.longterm.verdict, reasoning: result.longterm.reasoning, targetPrice: result.longterm.targetPrice, breakdown: mapBreakdown(result.longterm.breakdown) },
           }
+          industryPE = result.industryPE ?? null;
         } catch (e) {
           send('status', { message: `Gemini error: ${(e as Error).message}`, step: 6, total: 8 })
         }
@@ -161,6 +175,7 @@ export async function GET(request: NextRequest) {
             symbol, name: (quote.shortName || quote.longName || symbol) as string,
             analyses,
             quote: quoteData,
+            industryPE,
             news: {
               good: fmt(classified.positive).slice(0, 6),
               bad: fmt(classified.negative).slice(0, 6),

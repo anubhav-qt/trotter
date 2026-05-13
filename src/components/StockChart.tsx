@@ -28,9 +28,12 @@ const PERIODS: { key: Period; label: string }[] = [
 interface StockChartProps {
   symbol: string
   initialPrices?: Array<{ close: number; date: string }>
+  quote?: any
+  analyses?: any
+  onDeepDiveUpdate?: (updatedAnalysis: any) => void
 }
 
-export function StockChart({ symbol }: StockChartProps) {
+export function StockChart({ symbol, quote, analyses, onDeepDiveUpdate }: StockChartProps) {
   const [chartType, setChartType] = useState<ChartType>('line')
   const [period, setPeriod] = useState<Period>('1m')
   const [candles, setCandles] = useState<Candle[]>([])
@@ -78,11 +81,14 @@ export function StockChart({ symbol }: StockChartProps) {
       const res = await fetch('/api/deep-dive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol, image: dataUrl })
+        body: JSON.stringify({ symbol, image: dataUrl, quote, analyses, period })
       })
       if (res.ok) {
         const data = await res.json()
         setDeepDiveResult(data)
+        if (data.updatedAnalysis && onDeepDiveUpdate) {
+          onDeepDiveUpdate(data.updatedAnalysis)
+        }
       } else {
         const err = await res.json()
         setDeepDiveResult({
@@ -161,7 +167,8 @@ export function StockChart({ symbol }: StockChartProps) {
       )}
 
       {/* Chart area */}
-      <div className="px-4 pb-4 pt-1 h-52 relative" ref={chartRef}>
+      <div className="px-4 pb-4 pt-1 h-52">
+        <div className="relative w-full h-full" ref={chartRef}>
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="w-5 h-5 text-muted animate-spin" />
@@ -175,23 +182,25 @@ export function StockChart({ symbol }: StockChartProps) {
         ) : (
           <CandlestickChart candles={candles} period={period} onHover={setHoveredIndex} />
         )}
-        
         {/* Deep Dive Highlight Overlay */}
         {deepDiveResult && deepDiveResult.boundingBox && (
           <div 
-            className="absolute border-2 border-foreground bg-foreground/10 pointer-events-none transition-all duration-500 shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+            className="absolute bg-foreground/15 border-x-2 border-foreground pointer-events-none transition-all duration-500 shadow-[0_0_20px_rgba(255,255,255,0.1)] z-10"
             style={{
-              top: `calc(${deepDiveResult.boundingBox.ymin / 10}% + 0px)`, // Add slight offset mapping if needed
-              left: `${deepDiveResult.boundingBox.xmin / 10}%`,
-              height: `${(deepDiveResult.boundingBox.ymax - deepDiveResult.boundingBox.ymin) / 10}%`,
-              width: `${(deepDiveResult.boundingBox.xmax - deepDiveResult.boundingBox.xmin) / 10}%`,
+              top: '0%',
+              left: `${Math.max(0, Math.floor((deepDiveResult.boundingBox.xmin / 1000) * candles.length) / candles.length) * 100}%`,
+              height: '100%',
+              width: `${Math.max(1, (Math.floor((deepDiveResult.boundingBox.xmax / 1000) * candles.length) - Math.floor((deepDiveResult.boundingBox.xmin / 1000) * candles.length) + 1)) / candles.length * 100}%`,
             }}
           >
-            <div className="absolute -top-6 left-0 whitespace-nowrap bg-foreground text-background px-2 py-0.5 text-[10px] font-bold uppercase rounded-sm">
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap bg-foreground text-background px-2 py-0.5 text-[10px] font-bold uppercase rounded-sm shadow-lg">
               {deepDiveResult.patternName}
+              {/* Little down arrow for the label */}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-foreground" />
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Date range footer */}
@@ -288,7 +297,22 @@ function LineChart({ candles, period, onHover }: { candles: Candle[]; period: Pe
 
 // ---- CANDLESTICK CHART ----
 function CandlestickChart({ candles, period, onHover }: { candles: Candle[]; period: Period; onHover: (i: number | null) => void }) {
-  const allPrices = candles.flatMap(c => [c.open ?? c.close, c.high ?? c.close, c.low ?? c.close, c.close])
+  // Bollinger Bands Calculation
+  const smaPeriod = 20;
+  const bollingerBands = candles.map((c, i) => {
+    if (i < smaPeriod - 1) return null;
+    const window = candles.slice(i - smaPeriod + 1, i + 1).map(c => c.close);
+    const sma = window.reduce((a, b) => a + b, 0) / smaPeriod;
+    const stdDev = Math.sqrt(window.reduce((a, b) => a + Math.pow(b - sma, 2), 0) / smaPeriod);
+    return { sma, upper: sma + 2 * stdDev, lower: sma - 2 * stdDev };
+  });
+
+  const allPrices = candles.flatMap((c, i) => {
+    const bb = bollingerBands[i];
+    if (bb) return [c.open ?? c.close, c.high ?? c.close, c.low ?? c.close, c.close, bb.upper, bb.lower];
+    return [c.open ?? c.close, c.high ?? c.close, c.low ?? c.close, c.close];
+  });
+  
   const min = Math.min(...allPrices), max = Math.max(...allPrices)
   const range = max - min || 1
   const w = 600, h = 180, py = 8
@@ -297,6 +321,22 @@ function CandlestickChart({ candles, period, onHover }: { candles: Candle[]; per
 
   const toY = (price: number) => py + (1 - (price - min) / range) * (h - 2 * py)
 
+  const maxVol = Math.max(...candles.map(c => c.volume || 0)) || 1;
+  const volH = h * 0.25;
+
+  const bbPoints = bollingerBands.map((bb, i) => {
+    if (!bb) return null;
+    const x = i * gap + gap / 2;
+    return { x, upper: toY(bb.upper), lower: toY(bb.lower), sma: toY(bb.sma) };
+  }).filter(Boolean) as Array<{x: number, upper: number, lower: number, sma: number}>;
+
+  const upperPath = bbPoints.map(p => `${p.x},${p.upper}`).join(' ');
+  const lowerPath = bbPoints.map(p => `${p.x},${p.lower}`).join(' ');
+  const smaPath = bbPoints.map(p => `${p.x},${p.sma}`).join(' ');
+  const bbArea = bbPoints.length > 0 ? `M ${bbPoints[0]?.x},${bbPoints[0]?.upper} ` +
+    bbPoints.map(p => `L ${p.x},${p.upper}`).join(' ') + ' ' +
+    bbPoints.slice().reverse().map(p => `L ${p.x},${p.lower}`).join(' ') + ' Z' : '';
+
   return (
     <svg
       viewBox={`0 0 ${w} ${h}`}
@@ -304,11 +344,22 @@ function CandlestickChart({ candles, period, onHover }: { candles: Candle[]; per
       preserveAspectRatio="none"
       onMouseLeave={() => onHover(null)}
     >
+      {/* Bollinger Bands */}
+      {bbPoints.length > 0 && (
+        <>
+          <path d={bbArea} fill="currentColor" fillOpacity={0.05} />
+          <polyline points={upperPath} fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2,2" opacity={0.3} />
+          <polyline points={lowerPath} fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2,2" opacity={0.3} />
+          <polyline points={smaPath} fill="none" stroke="currentColor" strokeWidth="0.8" opacity={0.4} />
+        </>
+      )}
+
       {candles.map((c, i) => {
         const open = c.open ?? c.close
         const high = c.high ?? c.close
         const low = c.low ?? c.close
         const bullish = c.close >= open
+        const color = bullish ? '#10b981' : '#ef4444'
         const x = i * gap + gap / 2
         const bodyTop = toY(Math.max(open, c.close))
         const bodyBottom = toY(Math.min(open, c.close))
@@ -318,12 +369,22 @@ function CandlestickChart({ candles, period, onHover }: { candles: Candle[]; per
           <g key={i} onMouseEnter={() => onHover(i)}>
             {/* Hover zone */}
             <rect x={x - gap / 2} y={0} width={gap} height={h} fill="transparent" />
+            
+            {/* Volume */}
+            <rect
+              x={x - candleW / 2}
+              y={h - (c.volume || 0) / maxVol * volH}
+              width={candleW}
+              height={(c.volume || 0) / maxVol * volH}
+              fill={color}
+              opacity={0.25}
+            />
+
             {/* Wick */}
             <line
               x1={x} y1={toY(high)} x2={x} y2={toY(low)}
-              stroke="currentColor"
-              strokeWidth="0.8"
-              strokeOpacity={0.5}
+              stroke={color}
+              strokeWidth="1"
             />
             {/* Body */}
             <rect
@@ -331,10 +392,9 @@ function CandlestickChart({ candles, period, onHover }: { candles: Candle[]; per
               y={bodyTop}
               width={candleW}
               height={bodyH}
-              fill={bullish ? 'currentColor' : 'transparent'}
-              stroke="currentColor"
-              strokeWidth="0.8"
-              opacity={bullish ? 0.9 : 0.5}
+              fill={bullish ? color : 'transparent'}
+              stroke={color}
+              strokeWidth="1"
             />
           </g>
         )

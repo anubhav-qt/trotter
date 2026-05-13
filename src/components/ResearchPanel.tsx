@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TrendingUp, TrendingDown, Minus, ExternalLink, ChevronRight } from 'lucide-react'
 import { StockChart } from './StockChart'
 
@@ -19,6 +19,7 @@ export interface ResearchResult {
     score: number
     verdict: string
     reasoning: string
+    targetPrice?: number | null
     breakdown: Record<string, { score: number; max: number; detail: string }>
   }>
   quote: {
@@ -34,6 +35,7 @@ export interface ResearchResult {
     neutral: NewsItem[]
   }
   historicalPrices: Array<{ close: number; date: string }>
+  industryPE: number | null
 }
 
 interface ResearchPanelProps {
@@ -57,7 +59,7 @@ function formatBigNum(n: number | null): string {
   return n.toLocaleString()
 }
 
-function ScoreGauge({ score, verdict, reasoning }: { score: number; verdict?: string; reasoning?: string }) {
+function ScoreGauge({ score, verdict, reasoning, targetPrice }: { score: number; verdict?: string; reasoning?: string; targetPrice?: number | null }) {
   const barWidth = `${score}%`
   const label = verdict || (score >= 75 ? 'STRONG BUY' : score >= 60 ? 'BUY' : score >= 45 ? 'HOLD' : score >= 30 ? 'CAUTIOUS' : 'AVOID')
   return (
@@ -69,6 +71,12 @@ function ScoreGauge({ score, verdict, reasoning }: { score: number; verdict?: st
         </div>
         <span className="text-sm font-mono font-bold tracking-wider uppercase text-foreground">{label}</span>
       </div>
+      {targetPrice != null && (
+        <div className="mb-4">
+          <span className="text-xs font-mono text-muted uppercase tracking-wider">Est. Target Price: </span>
+          <span className="text-sm font-mono font-bold text-foreground">${formatNum(targetPrice)}</span>
+        </div>
+      )}
       <div className="w-full h-2 bg-background rounded-full overflow-hidden border border-border mb-4">
         <div className="h-full bg-foreground rounded-full transition-all duration-1000 ease-out" style={{ width: barWidth }} />
       </div>
@@ -128,6 +136,13 @@ function NewsCard({ item }: { item: NewsItem }) {
 
 export function ResearchPanel({ logs, result, isLoading, error, goal }: ResearchPanelProps) {
   const logEndRef = useRef<HTMLDivElement>(null)
+  
+  // Local state for analyses so deep dive can update it
+  const [localAnalyses, setLocalAnalyses] = useState(result?.analyses)
+
+  useEffect(() => {
+    setLocalAnalyses(result?.analyses)
+  }, [result?.analyses])
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -188,11 +203,14 @@ export function ResearchPanel({ logs, result, isLoading, error, goal }: Research
           </div>
 
           {/* Score */}
-          <ScoreGauge 
-            score={result.analyses[goal].score} 
-            verdict={result.analyses[goal].verdict} 
-            reasoning={result.analyses[goal].reasoning} 
-          />
+          {localAnalyses && localAnalyses[goal] && (
+            <ScoreGauge 
+              score={localAnalyses[goal].score} 
+              verdict={localAnalyses[goal].verdict} 
+              reasoning={localAnalyses[goal].reasoning} 
+              targetPrice={localAnalyses[goal].targetPrice}
+            />
+          )}
 
           {/* Breakdown */}
           <div className="border border-border rounded-lg overflow-hidden">
@@ -202,7 +220,7 @@ export function ResearchPanel({ logs, result, isLoading, error, goal }: Research
               </span>
             </div>
             <div className="divide-y divide-border">
-              {Object.entries(result.analyses[goal].breakdown).map(([key, val]) => (
+              {localAnalyses && localAnalyses[goal] && Object.entries(localAnalyses[goal].breakdown).map(([key, val]) => (
                 <div key={key} className="px-4 py-3">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-sm font-mono font-bold text-foreground capitalize">{key}</span>
@@ -220,19 +238,33 @@ export function ResearchPanel({ logs, result, isLoading, error, goal }: Research
           </div>
 
           {/* Interactive Chart */}
-          <StockChart symbol={result.symbol} />
+          <StockChart 
+            symbol={result.symbol} 
+            quote={result.quote} 
+            analyses={localAnalyses ? localAnalyses[goal] : undefined} 
+            onDeepDiveUpdate={(updated) => {
+              if (localAnalyses) {
+                // Merge the updated scores and target prices into the existing breakdown
+                setLocalAnalyses({
+                  weekly: { ...localAnalyses.weekly, score: updated.weekly.score, verdict: updated.weekly.verdict, targetPrice: updated.weekly.targetPrice },
+                  monthly: { ...localAnalyses.monthly, score: updated.monthly.score, verdict: updated.monthly.verdict, targetPrice: updated.monthly.targetPrice },
+                  longterm: { ...localAnalyses.longterm, score: updated.longterm.score, verdict: updated.longterm.verdict, targetPrice: updated.longterm.targetPrice },
+                })
+              }
+            }}
+          />
 
           {/* Stats Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-px border border-border rounded-lg overflow-hidden">
             {[
               ['Mkt Cap', formatBigNum(result.quote.marketCap)],
               ['P/E', result.quote.pe ? formatNum(result.quote.pe, 1) : '—'],
+              ['Industry P/E', result.industryPE ? formatNum(result.industryPE, 1) : '—'],
               ['EPS', result.quote.eps ? formatNum(result.quote.eps) : '—'],
               ['Volume', formatBigNum(result.quote.volume)],
               ['Day High', formatNum(result.quote.dayHigh)],
               ['Day Low', formatNum(result.quote.dayLow)],
               ['52w High', formatNum(result.quote.fiftyTwoWeekHigh)],
-              ['52w Low', formatNum(result.quote.fiftyTwoWeekLow)],
             ].map(([label, val]) => (
               <div key={label} className="bg-surface px-4 py-3 text-center">
                 <p className="text-sm font-mono font-bold text-foreground">{val}</p>

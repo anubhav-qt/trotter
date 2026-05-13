@@ -14,11 +14,16 @@ const DeepDiveSchema = z.object({
     ymax: z.number().describe('Bottom edge of the bounding box (0-1000 scale). 1000 is bottom.'),
     xmax: z.number().describe('Right edge of the bounding box (0-1000 scale). 1000 is right.'),
   }).describe('The exact spatial coordinates bounding the identified pattern on the provided chart.'),
+  updatedAnalysis: z.object({
+    weekly: z.object({ score: z.number(), verdict: z.string(), targetPrice: z.number().nullable() }),
+    monthly: z.object({ score: z.number(), verdict: z.string(), targetPrice: z.number().nullable() }),
+    longterm: z.object({ score: z.number(), verdict: z.string(), targetPrice: z.number().nullable() }),
+  }).optional().describe('If the visual pattern provides new insight, return updated scores, verdicts, and estimated target prices for the 3 time horizons.')
 })
 
 export async function POST(request: NextRequest) {
   try {
-    const { image, symbol } = await request.json()
+    const { image, symbol, quote, analyses, period } = await request.json()
 
     if (!image || !symbol) {
       return Response.json({ error: 'Image and symbol are required.' }, { status: 400 })
@@ -45,9 +50,19 @@ export async function POST(request: NextRequest) {
       content: [
         {
           type: 'text',
-          text: `You are an expert technical analyst. I have provided an image of a candlestick chart for ${symbol}.
-                 Identify the single most prominent and actionable candlestick pattern (e.g., Engulfing, Doji, Hammer, Head and Shoulders, MACD crossover if visible, etc.).
-                 Provide the pattern name, an insightful explanation of its significance right now, and the exact spatial bounding box coordinates [ymin, xmin, ymax, xmax] strictly in the 0-1000 scale over the provided image identifying exactly where this pattern occurs.`,
+          text: `You are an expert technical analyst. I have provided an image of a candlestick chart with Bollinger Bands and Volume bars for ${symbol}.
+                 
+                 Here is the current fundamental and AI analysis context for the stock:
+                 - Price: ${quote?.price} (Change: ${quote?.changePercent}%)
+                 - P/E Ratio: ${quote?.pe}
+                 - Volume: ${quote?.volume} (Avg: ${quote?.avgVolume})
+                 - AI Score: ${analyses?.score}/100 (${analyses?.verdict})
+                 - AI Reasoning: ${analyses?.reasoning}
+                 
+                 Identify the single most prominent and actionable candlestick pattern (e.g., Bullish Engulfing, Doji, Hammer, Head and Shoulders, MACD crossover if visible, etc.) taking into account the Bollinger Bands and Volume.
+                 Provide the pattern name, an insightful explanation of its significance right now incorporating the provided numerical and AI context, and the exact spatial bounding box coordinates [ymin, xmin, ymax, xmax] strictly in the 0-1000 scale over the provided image identifying exactly where this pattern occurs.
+                 
+                 IMPORTANT: The user provided a chart for period: ${period || 'unknown'}. Based on the strength of this pattern and the current price, provide an \`updatedAnalysis\` containing the estimated target price, score, and verdict for ALL 3 horizons (weekly, monthly, longterm).`,
         },
         {
           type: 'image_url',

@@ -7,6 +7,7 @@ const BaseAnalysisSchema = z.object({
   score: z.number().min(0).max(100).describe('Investment score 0-100'),
   verdict: z.enum(['STRONG BUY', 'BUY', 'HOLD', 'CAUTIOUS', 'AVOID']),
   reasoning: z.string().describe('2-3 sentence analysis'),
+  targetPrice: z.number().nullable().describe('Estimated target price for this specific timeframe (e.g. what the price could be in 1 week, 1 month, or 1 year)'),
   breakdown: z.object({
     momentum: z.object({ score: z.number(), detail: z.string() }),
     valuation: z.object({ score: z.number(), detail: z.string() }),
@@ -17,6 +18,7 @@ const BaseAnalysisSchema = z.object({
 })
 
 export const InvestmentAnalysisSchema = z.object({
+  industryPE: z.number().nullable().describe('The typical average P/E ratio for this industry/sector based on the search context, or null if unavailable'),
   weekly: BaseAnalysisSchema.describe('Score for weekly swing trading (1-5 days)'),
   monthly: BaseAnalysisSchema.describe('Score for monthly position (2-8 weeks)'),
   longterm: BaseAnalysisSchema.describe('Score for long-term hold (6 months+)'),
@@ -39,9 +41,13 @@ export function buildScoringPrompt(
   name: string,
   quoteData: Record<string, unknown>,
   histSummary: string,
-  sentimentSummary: { positive: number; negative: number; neutral: number }
+  sentimentSummary: { positive: number; negative: number; neutral: number },
+  searchContext: string = ''
 ): string {
   return `Score ${symbol} (${name}) for 3 different trading horizons: Weekly (1-5d), Monthly (2-8w), and Long-term (6mo+). 0-100 scale for each.
+  
+Identify the industry P/E based on this web search context:
+${searchContext}
 
 DATA:
 Price=${quoteData.price} ${quoteData.currency}, Chg=${quoteData.change} (${quoteData.changePercent}%)

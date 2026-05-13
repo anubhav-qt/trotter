@@ -22,12 +22,12 @@ function calcStats(hist: Array<{ close: number; date: string }>, days: number): 
   const chg = ((last.close - first.close) / first.close * 100).toFixed(2)
   const closes = slice.map(h => h.close)
   const high = Math.max(...closes), low = Math.min(...closes)
-  
+
   const rets = []
   for (let i = 1; i < closes.length; i++) rets.push((closes[i] - closes[i-1]) / closes[i-1])
   const mean = rets.reduce((a, b) => a + b, 0) / rets.length
   const vol = (Math.sqrt(rets.reduce((a, b) => a + (b - mean) ** 2, 0) / rets.length) * 100).toFixed(2)
-  
+
   return `${days}d: ${chg}% (H:${high.toFixed(2)} L:${low.toFixed(2)} Vol:${vol}%)`
 }
 
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 
         // 6. Gemini scoring (Triple Goal) with Web Search
         send('status', { message: `Performing live web search for industry P/E context...`, step: 6, total: 9 })
-        
+
         let searchContext = ''
         try {
           const tvly = tavily({ apiKey: process.env.TAVILY_API_KEY })
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
           console.warn('Web search failed:', err)
         }
 
-        send('status', { message: `Sending data to Gemini 2.5 Flash for multi-horizon scoring...`, step: 7, total: 9 })
+        send('status', { message: `Scoring...`, step: 7, total: 9 })
         const quoteData = {
           price: quote.regularMarketPrice ?? null,
           change: quote.regularMarketChange ?? null,
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
             volatility: { score: 7, detail: 'N/A' },
           }
         }
-        
+
         let analyses: any = {
           weekly: fallbackBase,
           monthly: fallbackBase,
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
             searchContext
           )
           const result = await scorer.invoke(prompt)
-          
+
           // Map schema keys (maxes added client-side or just map data)
           const mapBreakdown = (b: any) => ({
             momentum: { score: b.momentum.score, max: 25, detail: b.momentum.detail },

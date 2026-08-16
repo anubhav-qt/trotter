@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
 import { toPng } from 'html-to-image'
 
@@ -25,47 +25,78 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'all', label: 'ALL' },
 ]
 
+interface QuoteInfo {
+  price?: number | null
+  changePercent?: number | null
+  pe?: number | null
+  volume?: number | null
+  avgVolume?: number | null
+}
+
+interface AnalysisInfo {
+  score: number
+  verdict: string
+  reasoning: string
+}
+
+interface UpdatedHorizon {
+  score: number
+  verdict: string
+  reasoning: string
+  targetPrice: number | null
+}
+
+export interface UpdatedAnalyses {
+  weekly: UpdatedHorizon
+  monthly: UpdatedHorizon
+  longterm: UpdatedHorizon
+}
+
+interface DeepDiveResult {
+  patternName: string
+  explanation: string
+  boundingBox: { ymin: number; xmin: number; ymax: number; xmax: number }
+  updatedAnalysis?: UpdatedAnalyses
+}
+
 interface StockChartProps {
   symbol: string
-  initialPrices?: Array<{ close: number; date: string }>
-  quote?: any
-  analyses?: any
-  onDeepDiveUpdate?: (updatedAnalysis: any) => void
+  quote?: QuoteInfo
+  analyses?: AnalysisInfo
+  onDeepDiveUpdate?: (updatedAnalysis: UpdatedAnalyses) => void
 }
 
 export function StockChart({ symbol, quote, analyses, onDeepDiveUpdate }: StockChartProps) {
   const [chartType, setChartType] = useState<ChartType>('line')
   const [period, setPeriod] = useState<Period>('1m')
-  const [candles, setCandles] = useState<Candle[]>([])
-  const [isLoading, setIsLoading] = useState(false)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
-  
+
+  // Chart data keyed by symbol+period; loading is derived, which also
+  // guards against out-of-order responses when switching periods quickly.
+  const dataKey = `${symbol}:${period}`
+  const [chartData, setChartData] = useState<{ key: string; candles: Candle[] }>({ key: '', candles: [] })
+  const isLoading = chartData.key !== dataKey
+  const candles = isLoading ? [] : chartData.candles
+
   // Deep Dive State
   const chartRef = useRef<HTMLDivElement>(null)
   const [isDeepDiving, setIsDeepDiving] = useState(false)
-  const [deepDiveResult, setDeepDiveResult] = useState<{
-    patternName: string
-    explanation: string
-    boundingBox: { ymin: number; xmin: number; ymax: number; xmax: number }
-  } | null>(null)
-
-  const fetchData = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const res = await fetch(`/api/chart?symbol=${encodeURIComponent(symbol)}&period=${period}`)
-      const data = await res.json()
-      setCandles(data.candles || [])
-      setDeepDiveResult(null) // Reset deep dive when data changes
-    } catch {
-      setCandles([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [symbol, period])
+  const [deepDiveResult, setDeepDiveResult] = useState<DeepDiveResult | null>(null)
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    let cancelled = false
+    fetch(`/api/chart?symbol=${encodeURIComponent(symbol)}&period=${period}`)
+      .then(res => res.json())
+      .then(data => {
+        if (cancelled) return
+        setChartData({ key: dataKey, candles: data.candles || [] })
+        setDeepDiveResult(null) // Reset deep dive when data changes
+      })
+      .catch(() => {
+        if (!cancelled) setChartData({ key: dataKey, candles: [] })
+      })
+    return () => { cancelled = true }
+  }, [symbol, period, dataKey])
 
   const hovered = hoveredIndex !== null && hoveredIndex < candles.length ? candles[hoveredIndex] : null
   const latest = candles.length > 0 ? candles[candles.length - 1] : null
@@ -180,7 +211,7 @@ export function StockChart({ symbol, quote, analyses, onDeepDiveUpdate }: StockC
         ) : chartType === 'line' ? (
           <LineChart candles={candles} period={period} onHover={setHoveredIndex} />
         ) : (
-          <CandlestickChart candles={candles} period={period} onHover={setHoveredIndex} />
+          <CandlestickChart candles={candles} onHover={setHoveredIndex} />
         )}
         {/* Deep Dive Highlight Overlay */}
         {deepDiveResult && deepDiveResult.boundingBox && (
@@ -287,16 +318,12 @@ function LineChart({ candles, period, onHover }: { candles: Candle[]; period: Pe
           onMouseEnter={() => onHover(i)}
         />
       ))}
-      {/* Hover crosshair */}
-      {onHover && points.map((p, i) => (
-        <circle key={`dot-${i}`} cx={p.x} cy={p.y} r="0" fill="currentColor" className="pointer-events-none" />
-      )).filter(() => false)}
     </svg>
   )
 }
 
 // ---- CANDLESTICK CHART ----
-function CandlestickChart({ candles, period, onHover }: { candles: Candle[]; period: Period; onHover: (i: number | null) => void }) {
+function CandlestickChart({ candles, onHover }: { candles: Candle[]; onHover: (i: number | null) => void }) {
   // Bollinger Bands Calculation
   const smaPeriod = 20;
   const bollingerBands = candles.map((c, i) => {
@@ -399,8 +426,6 @@ function CandlestickChart({ candles, period, onHover }: { candles: Candle[]; per
           </g>
         )
       })}
-      {/* Suppress unused var warning */}
-      {period && null}
     </svg>
   )
 }

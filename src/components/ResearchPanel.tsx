@@ -137,12 +137,14 @@ function NewsCard({ item }: { item: NewsItem }) {
 export function ResearchPanel({ logs, result, isLoading, error, goal }: ResearchPanelProps) {
   const logEndRef = useRef<HTMLDivElement>(null)
   
-  // Local state for analyses so deep dive can update it
+  // Local state for analyses so deep dive can update it.
+  // Re-synced from props during render when a new result arrives.
   const [localAnalyses, setLocalAnalyses] = useState(result?.analyses)
-
-  useEffect(() => {
+  const [syncedAnalyses, setSyncedAnalyses] = useState(result?.analyses)
+  if (result?.analyses !== syncedAnalyses) {
+    setSyncedAnalyses(result?.analyses)
     setLocalAnalyses(result?.analyses)
-  }, [result?.analyses])
+  }
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })

@@ -1,30 +1,32 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { z } from 'zod'
+import type { Horizon, HorizonAnalysis, QuoteData, SentimentCounts } from './scoring'
 
-// --- Zod schema for Gemini structured output ---
+// The LLM does NOT produce scores — those are computed deterministically in
+// src/lib/scoring.ts. It only writes narrative reasoning, estimates target
+// prices, and extracts the industry P/E from the web search context.
 
-const BaseAnalysisSchema = z.object({
-  score: z.number().min(0).max(100).describe('Investment score 0-100'),
-  verdict: z.enum(['STRONG BUY', 'BUY', 'HOLD', 'CAUTIOUS', 'AVOID']),
-  reasoning: z.string().describe('2-3 sentence analysis'),
-  targetPrice: z.number().nullable().describe('Estimated target price for this specific timeframe (e.g. what the price could be in 1 week, 1 month, or 1 year)'),
-  breakdown: z.object({
-    momentum: z.object({ score: z.number(), detail: z.string() }),
-    valuation: z.object({ score: z.number(), detail: z.string() }),
-    volume: z.object({ score: z.number(), detail: z.string() }),
-    sentiment: z.object({ score: z.number(), detail: z.string() }),
-    volatility: z.object({ score: z.number(), detail: z.string() }),
-  }),
+const HorizonNarrativeSchema = z.object({
+  reasoning: z.string().describe('2-3 sentence analysis consistent with the provided factor scores'),
+  targetPrice: z
+    .number()
+    .nullable()
+    .describe('Estimated target price for this timeframe, or null if it cannot be reasonably estimated'),
 })
 
-export const InvestmentAnalysisSchema = z.object({
-  industryPE: z.number().nullable().describe('The typical average P/E ratio for this industry/sector based on the search context, or null if unavailable'),
-  weekly: BaseAnalysisSchema.describe('Score for weekly swing trading (1-5 days)'),
-  monthly: BaseAnalysisSchema.describe('Score for monthly position (2-8 weeks)'),
-  longterm: BaseAnalysisSchema.describe('Score for long-term hold (6 months+)'),
+export const NarrativeSchema = z.object({
+  industryPE: z
+    .number()
+    .nullable()
+    .describe('Average P/E ratio for this industry/sector based on the search context, or null if unavailable'),
+  weekly: HorizonNarrativeSchema.describe('Narrative for weekly swing trading (1-5 days)'),
+  monthly: HorizonNarrativeSchema.describe('Narrative for monthly position (2-8 weeks)'),
+  longterm: HorizonNarrativeSchema.describe('Narrative for long-term hold (6 months+)'),
 })
 
-export function createLLM() {
+export type Narrative = z.infer<typeof NarrativeSchema>
+
+export function createLLM(temperature = 0) {
   const apiKey = process.env.GOOGLE_API_KEY
   if (!apiKey) {
     throw new Error('GOOGLE_API_KEY not set. Add it to .env.local')
@@ -32,38 +34,48 @@ export function createLLM() {
   return new ChatGoogleGenerativeAI({
     model: 'gemini-2.5-flash',
     apiKey,
-    temperature: 0.2,
+    temperature,
   })
 }
 
-export function buildScoringPrompt(
+export function buildNarrativePrompt(
   symbol: string,
   name: string,
-  quoteData: Record<string, unknown>,
+  quoteData: QuoteData,
   histSummary: string,
-  sentimentSummary: { positive: number; negative: number; neutral: number },
-  searchContext: string = ''
+  sentimentSummary: SentimentCounts,
+  analyses: Record<Horizon, HorizonAnalysis>,
+  searchContext: string
 ): string {
-  return `Score ${symbol} (${name}) for 3 different trading horizons: Weekly (1-5d), Monthly (2-8w), and Long-term (6mo+). 0-100 scale for each.
-  
-Identify the industry average P/E for ${symbol}. 
-If the following web search context contains the answer, use it:
-[SEARCH CONTEXT]
-${searchContext}
-[END SEARCH CONTEXT]
-If the search context is empty or unhelpful, use your vast internal knowledge of the stock market to estimate the current average P/E ratio for ${symbol}'s industry/sector.
+  const scoreLines = (Object.entries(analyses) as Array<[Horizon, HorizonAnalysis]>)
+    .map(([h, a]) => {
+      const b = a.breakdown
+      return `${h}: total ${a.score}/100 (${a.verdict}) — momentum ${b.momentum.score}/25, valuation ${b.valuation.score}/20, volume ${b.volume.score}/15, sentiment ${b.sentiment.score}/25, volatility ${b.volatility.score}/15`
+    })
+    .join('\n')
 
-DATA:
+  return `You are a financial analyst writing commentary for ${symbol} (${name}).
+
+A quantitative model has ALREADY scored the stock for 3 horizons. Do not contradict or restate raw scores — explain the "why" behind them and give a realistic target price per horizon.
+
+COMPUTED SCORES (fixed, do not change):
+${scoreLines}
+
+MARKET DATA:
 Price=${quoteData.price} ${quoteData.currency}, Chg=${quoteData.change} (${quoteData.changePercent}%)
 MCap=${quoteData.marketCap}, PE=${quoteData.pe}, EPS=${quoteData.eps}
 Vol=${quoteData.volume}, AvgVol=${quoteData.avgVolume}
 Day=${quoteData.dayLow}-${quoteData.dayHigh}, 52w=${quoteData.fiftyTwoWeekLow}-${quoteData.fiftyTwoWeekHigh}
 
-HISTORY PERFORMANCES:
+PRICE HISTORY:
 ${histSummary}
 
-NEWS SENTIMENT (30d): +${sentimentSummary.positive} -${sentimentSummary.negative} ~${sentimentSummary.neutral}
+NEWS SENTIMENT (30d, FinBERT): +${sentimentSummary.positive} -${sentimentSummary.negative} ~${sentimentSummary.neutral}
 
-FACTORS: momentum(0-25) valuation(0-20) volume(0-15) sentiment(0-25) volatility(0-15)
-75+:STRONG BUY 60-74:BUY 45-59:HOLD 30-44:CAUTIOUS <30:AVOID`
+WEB SEARCH CONTEXT (for industry P/E):
+${searchContext || '(no results)'}
+
+Tasks:
+1. industryPE: extract the industry/sector average P/E from the search context; if absent, estimate from your knowledge; null only if truly unknown.
+2. For each horizon (weekly = 1-5 days, monthly = 2-8 weeks, longterm = 6+ months): write 2-3 sentences of reasoning consistent with the computed scores, and a target price in ${quoteData.currency}. Target prices must be plausible relative to the current price of ${quoteData.price} (weekly within a few percent, longterm can be wider).`
 }

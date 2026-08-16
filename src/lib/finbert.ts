@@ -1,30 +1,42 @@
 import { pipeline, type TextClassificationPipeline } from '@huggingface/transformers'
 
-let classifier: TextClassificationPipeline | null = null
+// Lazy singleton with in-flight dedup so concurrent requests don't load the model twice.
+let classifierPromise: Promise<TextClassificationPipeline> | null = null
 
-/**
- * Lazy-loads the FinBERT model (ProsusAI/finbert via Xenova ONNX export).
- * Cached after first load — subsequent calls reuse the same pipeline.
- */
-async function getClassifier(): Promise<TextClassificationPipeline> {
-  if (!classifier) {
-    classifier = await pipeline('text-classification', 'Xenova/finbert') as TextClassificationPipeline
+function getClassifier(): Promise<TextClassificationPipeline> {
+  if (!classifierPromise) {
+    classifierPromise = pipeline('text-classification', 'Xenova/finbert').then(
+      p => p as TextClassificationPipeline,
+      err => {
+        classifierPromise = null // allow retry on next request
+        throw err
+      }
+    )
   }
-  return classifier
+  return classifierPromise
 }
+
+export type Sentiment = 'positive' | 'negative' | 'neutral'
 
 export interface ClassifiedNewsItem {
   title: string
   link: string
   publisher: string
   publishedAt: string
-  sentiment: 'positive' | 'negative' | 'neutral'
+  sentiment: Sentiment
   confidence: number
 }
 
+interface Prediction {
+  label: string
+  score: number
+}
+
+const BATCH_SIZE = 8
+
 /**
- * Classify an array of news headlines using FinBERT.
- * Returns items grouped by sentiment.
+ * Classify news headlines with FinBERT, batched for throughput.
+ * Items that fail classification default to neutral with 0 confidence.
  */
 export async function classifyNews(
   items: Array<{ title: string; link: string; publisher: string; publishedAt: string }>,
@@ -39,34 +51,29 @@ export async function classifyNews(
 
   const model = await getClassifier()
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
+  for (let start = 0; start < items.length; start += BATCH_SIZE) {
+    const batch = items.slice(start, start + BATCH_SIZE)
+    let predictions: Prediction[]
     try {
-      const output = await model(item.title, { topk: 1 })
-      // output is [{ label: 'positive'|'negative'|'neutral', score: 0.99 }]
-      const prediction = Array.isArray(output) ? output[0] : output
-      const label = (prediction as { label: string }).label.toLowerCase() as 'positive' | 'negative' | 'neutral'
-      const confidence = (prediction as { score: number }).score
-
-      const classified: ClassifiedNewsItem = {
-        title: item.title,
-        link: item.link,
-        publisher: item.publisher,
-        publishedAt: item.publishedAt,
-        sentiment: label,
-        confidence,
-      }
-
-      result[label].push(classified)
+      const output = await model(batch.map(i => i.title))
+      // Output per input is either a Prediction or a Prediction[] depending on top_k.
+      predictions = (output as Array<Prediction | Prediction[]>).map(o => (Array.isArray(o) ? o[0] : o))
     } catch {
-      // If classification fails for one item, default to neutral
-      result.neutral.push({
-        title: item.title, link: item.link, publisher: item.publisher,
-        publishedAt: item.publishedAt, sentiment: 'neutral', confidence: 0,
-      })
+      predictions = batch.map(() => ({ label: 'neutral', score: 0 }))
     }
 
-    if (onProgress) onProgress(i + 1, items.length)
+    batch.forEach((item, i) => {
+      const pred = predictions[i]
+      const label = pred?.label?.toLowerCase()
+      const sentiment: Sentiment = label === 'positive' || label === 'negative' ? label : 'neutral'
+      result[sentiment].push({
+        ...item,
+        sentiment,
+        confidence: pred?.score ?? 0,
+      })
+    })
+
+    onProgress?.(Math.min(start + BATCH_SIZE, items.length), items.length)
   }
 
   return result

@@ -49,10 +49,11 @@ export async function fetchTickerNews(symbol: string, maxAgeDays: number = 30): 
     if (res.ok) {
       const xml = await res.text()
       const items = parseRSSItems(xml)
-      const existingTitles = new Set(articles.map(a => a.title.toLowerCase()))
+      const existingTitles = new Set(articles.map(a => normalizeTitle(a.title)))
       for (const item of items) {
         const pubDate = new Date(item.pubDate).getTime()
-        if (pubDate >= cutoff && !existingTitles.has(item.title.toLowerCase())) {
+        if (pubDate >= cutoff && !existingTitles.has(normalizeTitle(item.title))) {
+          existingTitles.add(normalizeTitle(item.title))
           articles.push({
             title: item.title,
             link: item.link,
@@ -108,8 +109,17 @@ function extractTag(xml: string, tag: string): string {
 }
 
 function cleanHtml(text: string): string {
-  return text.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim()
+  return text.replace(/<[^>]+>/g, '')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ').trim()
+}
+
+// Google News titles end with " - Publisher"; strip that for dedup comparison.
+function normalizeTitle(title: string): string {
+  return title.replace(/\s+-\s+[^-]+$/, '').toLowerCase().trim()
 }
 
 function extractPublisher(urlOrSource: string): string {

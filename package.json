@@ -6,13 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
     "@langchain/core": "^1.1.45",
     "@langchain/google-genai": "^2.1.30",
     "@tavily/core": "^0.7.3",
+    "better-sqlite3": "^13.0.3",
     "html-to-image": "^1.11.13",
     "langchain": "^1.4.0",
     "lucide-react": "^1.14.0",
@@ -25,12 +29,18 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^22.20.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Trotter — Stock Market Intelligence",
-  description: "AI-powered stock market analysis and investment trading bot. Search, analyze, and score stocks for weekly, monthly, or long-term trading.",
+  description: "Quantitative research for NSE stocks: deterministic scores, volatility-based price ranges, and a graded track record of every call.",
 };
 
 export default function RootLayout({

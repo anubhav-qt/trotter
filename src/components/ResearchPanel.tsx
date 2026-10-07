@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { TrendingUp, TrendingDown, Minus, ExternalLink, ChevronRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, ExternalLink, ChevronRight, ShieldCheck, ShieldAlert, Shield } from 'lucide-react'
 import { StockChart } from './StockChart'
+import type { DataQuality, Horizon, HorizonAnalysis, ResearchResult, TrackRecordSummary } from '@/lib/research-types'
 
 interface NewsItem {
   title: string
@@ -12,56 +13,34 @@ interface NewsItem {
   reason?: string
 }
 
-export interface ResearchResult {
-  symbol: string
-  name: string
-  analyses: Record<string, {
-    score: number
-    verdict: string
-    reasoning: string
-    targetPrice?: number | null
-    breakdown: Record<string, { score: number; max: number; detail: string }>
-  }>
-  quote: {
-    price: number | null; change: number | null; changePercent: number | null
-    currency: string; marketCap: number | null; volume: number | null
-    avgVolume: number | null; dayHigh: number | null; dayLow: number | null
-    fiftyTwoWeekHigh: number | null; fiftyTwoWeekLow: number | null
-    pe: number | null; eps: number | null
-  }
-  news: {
-    good: NewsItem[]
-    bad: NewsItem[]
-    neutral: NewsItem[]
-  }
-  historicalPrices: Array<{ close: number; date: string }>
-  industryPE: number | null
-}
-
 interface ResearchPanelProps {
   logs: Array<{ message: string; step: number; total: number; timestamp: number }>
   result: ResearchResult | null
   isLoading: boolean
   error: string | null
-  goal: 'weekly' | 'monthly' | 'longterm'
+  goal: Horizon
 }
 
-function formatNum(n: number | null, decimals = 2): string {
+const HORIZON_LABEL: Record<Horizon, string> = { weekly: '1 week', monthly: '1 month', longterm: '6 months' }
+
+function formatNum(n: number | null | undefined, decimals = 2): string {
   if (n === null || n === undefined) return '—'
-  return n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  return n.toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
-function formatBigNum(n: number | null): string {
+/** Indian notation: lakh (1e5) and crore (1e7). */
+function formatIndian(n: number | null): string {
   if (n === null) return '—'
-  if (n >= 1e12) return `${(n / 1e12).toFixed(2)}T`
-  if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`
-  if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`
-  return n.toLocaleString()
+  if (n >= 1e7) return `${(n / 1e7).toLocaleString('en-IN', { maximumFractionDigits: 2 })} Cr`
+  if (n >= 1e5) return `${(n / 1e5).toLocaleString('en-IN', { maximumFractionDigits: 2 })} L`
+  return n.toLocaleString('en-IN', { maximumFractionDigits: 0 })
 }
 
-function ScoreGauge({ score, verdict, reasoning, targetPrice, currency }: { score: number; verdict?: string; reasoning?: string; targetPrice?: number | null; currency?: string }) {
-  const barWidth = `${score}%`
-  const label = verdict || (score >= 75 ? 'STRONG BUY' : score >= 60 ? 'BUY' : score >= 45 ? 'HOLD' : score >= 30 ? 'CAUTIOUS' : 'AVOID')
+const pct = (n: number | null, decimals = 1) => (n === null ? '—' : `${n >= 0 ? '+' : ''}${n.toFixed(decimals)}%`)
+const share = (n: number | null) => (n === null ? '—' : `${Math.round(n * 100)}%`)
+
+function ScoreGauge({ analysis }: { analysis: HorizonAnalysis }) {
+  const { score, verdict, reasoning, range } = analysis
   return (
     <div className="border border-border rounded-lg p-6 bg-surface">
       <div className="flex items-baseline justify-between mb-4">
@@ -69,22 +48,101 @@ function ScoreGauge({ score, verdict, reasoning, targetPrice, currency }: { scor
           <span className="text-5xl font-mono font-bold text-foreground">{score}</span>
           <span className="text-sm font-mono text-muted">/100</span>
         </div>
-        <span className="text-sm font-mono font-bold tracking-wider uppercase text-foreground">{label}</span>
+        <span className="text-sm font-mono font-bold tracking-wider uppercase text-foreground">{verdict}</span>
       </div>
-      {targetPrice != null && (
+      {range && (
         <div className="mb-4">
-          <span className="text-xs font-mono text-muted uppercase tracking-wider">Est. Target Price: </span>
-          <span className="text-sm font-mono font-bold text-foreground">{currency === 'USD' ? '$' : currency} {formatNum(targetPrice)}</span>
+          <span className="text-xs font-mono text-muted uppercase tracking-wider">
+            {Math.round(range.coverage * 100)}% likely range after {range.horizonDays} sessions:{' '}
+          </span>
+          <span className="text-sm font-mono font-bold text-foreground">
+            ₹{formatNum(range.low)} – ₹{formatNum(range.high)}
+          </span>
+          <p className="text-xs font-mono text-muted mt-1">
+            From recent volatility only — not a prediction of direction.
+          </p>
         </div>
       )}
       <div className="w-full h-2 bg-background rounded-full overflow-hidden border border-border mb-4">
-        <div className="h-full bg-foreground rounded-full transition-all duration-1000 ease-out" style={{ width: barWidth }} />
+        <div className="h-full bg-foreground rounded-full transition-all duration-1000 ease-out" style={{ width: `${score}%` }} />
       </div>
       {reasoning && (
         <p className="text-xs font-mono text-muted leading-relaxed border-t border-border pt-4">
           {reasoning}
         </p>
       )}
+    </div>
+  )
+}
+
+function DataQualityBar({ data, asOf }: { data: DataQuality; asOf: string }) {
+  const { verification } = data
+  const Icon = verification.status === 'verified' ? ShieldCheck : verification.status === 'mismatch' ? ShieldAlert : Shield
+  const source = data.historySource === 'upstox' ? 'Upstox' : 'Yahoo Finance'
+  return (
+    <div className="border border-border rounded-lg px-4 py-3 bg-surface">
+      <div className="flex items-start gap-2">
+        <Icon className="w-3.5 h-3.5 text-foreground shrink-0 mt-0.5" />
+        <p className="text-xs font-mono text-muted leading-relaxed">
+          Scored on the {asOf} close · {data.sessions} sessions from {source} since {data.firstDate}
+          {data.stale ? ' (stale copy)' : ''} · {verification.detail}
+        </p>
+      </div>
+      {data.warnings.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {data.warnings.map((w, i) => (
+            <li key={i} className="text-xs font-mono text-muted leading-relaxed">⚠ {w}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function RecordRow({ label, record }: { label: string; record: TrackRecordSummary['horizons'][Horizon] | undefined }) {
+  if (!record) return null
+  const { bullish, bearish } = record
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-sm font-mono font-bold text-foreground">{label}</span>
+        <span className="text-xs font-mono text-muted">{record.graded} graded · {record.pending} pending</span>
+      </div>
+      {record.graded === 0 ? (
+        <p className="text-xs font-mono text-muted">No calls old enough to grade yet.</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 text-xs font-mono text-muted">
+          <span>BUY calls: {bullish.calls} · beat Nifty {share(bullish.hitRate)} · avg {pct(bullish.avgExcessPct)}</span>
+          <span>AVOID calls: {bearish.calls} · lagged Nifty {share(bearish.hitRate)} · avg {pct(bearish.avgExcessPct)}</span>
+          <span>Inside 80% range: {share(record.rangeCoverage)}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TrackRecord({ symbol, own, goal }: { symbol: string; own: TrackRecordSummary; goal: Horizon }) {
+  const [model, setModel] = useState<TrackRecordSummary | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/track-record')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => { if (!cancelled) setModel(data) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [symbol])
+
+  return (
+    <div className="border border-border rounded-lg overflow-hidden">
+      <div className="px-4 py-2 border-b border-border bg-surface">
+        <span className="text-xs font-mono text-muted uppercase tracking-wider">
+          Track Record — {HORIZON_LABEL[goal]} calls graded vs Nifty 50 ({own.modelVersion})
+        </span>
+      </div>
+      <div className="divide-y divide-border">
+        <RecordRow label={symbol} record={own.horizons[goal]} />
+        <RecordRow label="All stocks" record={model?.horizons[goal]} />
+      </div>
     </div>
   )
 }
@@ -136,19 +194,14 @@ function NewsCard({ item }: { item: NewsItem }) {
 
 export function ResearchPanel({ logs, result, isLoading, error, goal }: ResearchPanelProps) {
   const logEndRef = useRef<HTMLDivElement>(null)
-  
-  // Local state for analyses so deep dive can update it.
-  // Re-synced from props during render when a new result arrives.
-  const [localAnalyses, setLocalAnalyses] = useState(result?.analyses)
-  const [syncedAnalyses, setSyncedAnalyses] = useState(result?.analyses)
-  if (result?.analyses !== syncedAnalyses) {
-    setSyncedAnalyses(result?.analyses)
-    setLocalAnalyses(result?.analyses)
-  }
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [logs])
+
+  const analysis = result?.analyses[goal]
+  const price = result ? result.quote?.price ?? result.lastClose : null
+  const change = result?.quote?.change ?? null
 
   return (
     <div className="w-full max-w-3xl mx-auto mt-10 animate-slide-down">
@@ -181,49 +234,45 @@ export function ResearchPanel({ logs, result, isLoading, error, goal }: Research
       </div>
 
       {/* Results */}
-      {result && (
+      {result && analysis && (
         <div className="space-y-4">
           {/* Header */}
           <div className="flex items-center justify-between border border-border rounded-lg p-4 bg-surface">
             <div>
               <h3 className="text-lg font-mono font-bold text-foreground">{result.symbol}</h3>
               <p className="text-sm font-mono text-muted">{result.name}</p>
+              {result.industry && <p className="text-xs font-mono text-muted mt-0.5">{result.industry}</p>}
             </div>
             <div className="text-right">
-              <p className="text-lg font-mono font-bold text-foreground">
-                {result.quote.currency === 'USD' ? '$' : result.quote.currency} {formatNum(result.quote.price)}
-              </p>
-              {result.quote.change !== null && (
+              <p className="text-lg font-mono font-bold text-foreground">₹ {formatNum(price)}</p>
+              {change !== null && (
                 <div className="flex items-center justify-end gap-1">
-                  {result.quote.change >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                  {change >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                   <span className="text-xs font-mono">
-                    {result.quote.change >= 0 ? '+' : ''}{formatNum(result.quote.change)} ({formatNum(result.quote.changePercent)}%)
+                    {change >= 0 ? '+' : ''}{formatNum(change)} ({formatNum(result.quote?.changePercent)}%)
                   </span>
                 </div>
               )}
+              <p className="text-xs font-mono text-muted mt-0.5">
+                {result.quote?.price != null ? 'live (delayed)' : `close ${result.asOf}`}
+              </p>
             </div>
           </div>
 
+          <DataQualityBar data={result.data} asOf={result.asOf} />
+
           {/* Score */}
-          {localAnalyses && localAnalyses[goal] && (
-            <ScoreGauge 
-              score={localAnalyses[goal].score} 
-              verdict={localAnalyses[goal].verdict} 
-              reasoning={localAnalyses[goal].reasoning} 
-              targetPrice={localAnalyses[goal].targetPrice}
-              currency={result.quote.currency}
-            />
-          )}
+          <ScoreGauge analysis={analysis} />
 
           {/* Breakdown */}
           <div className="border border-border rounded-lg overflow-hidden">
             <div className="px-4 py-2 border-b border-border bg-surface">
               <span className="text-xs font-mono text-muted uppercase tracking-wider">
-                AI Score Breakdown — {goal} trading
+                Score Breakdown — {HORIZON_LABEL[goal]} horizon
               </span>
             </div>
             <div className="divide-y divide-border">
-              {localAnalyses && localAnalyses[goal] && Object.entries(localAnalyses[goal].breakdown).map(([key, val]) => (
+              {Object.entries(analysis.breakdown).map(([key, val]) => (
                 <div key={key} className="px-4 py-3">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-sm font-mono font-bold text-foreground capitalize">{key}</span>
@@ -240,34 +289,32 @@ export function ResearchPanel({ logs, result, isLoading, error, goal }: Research
             </div>
           </div>
 
+          <TrackRecord symbol={result.symbol} own={result.trackRecord} goal={goal} />
+
           {/* Interactive Chart */}
-          <StockChart 
-            symbol={result.symbol} 
-            quote={result.quote} 
-            analyses={localAnalyses ? localAnalyses[goal] : undefined} 
-            onDeepDiveUpdate={(updated) => {
-              if (localAnalyses) {
-                // Merge the updated scores and target prices into the existing breakdown
-                setLocalAnalyses({
-                  weekly: { ...localAnalyses.weekly, score: updated.weekly.score, verdict: updated.weekly.verdict, reasoning: updated.weekly.reasoning, targetPrice: updated.weekly.targetPrice },
-                  monthly: { ...localAnalyses.monthly, score: updated.monthly.score, verdict: updated.monthly.verdict, reasoning: updated.monthly.reasoning, targetPrice: updated.monthly.targetPrice },
-                  longterm: { ...localAnalyses.longterm, score: updated.longterm.score, verdict: updated.longterm.verdict, reasoning: updated.longterm.reasoning, targetPrice: updated.longterm.targetPrice },
-                })
-              }
+          <StockChart
+            symbol={result.symbol}
+            quote={{
+              price,
+              changePercent: result.quote?.changePercent ?? null,
+              pe: result.stats.pe,
+              volume: result.stats.lastVolume,
+              avgVolume: result.stats.avgVolume,
             }}
+            analyses={analysis}
           />
 
           {/* Stats Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-px border border-border rounded-lg overflow-hidden">
             {[
-              ['Mkt Cap', formatBigNum(result.quote.marketCap)],
-              ['P/E', result.quote.pe ? formatNum(result.quote.pe, 1) : '—'],
-              ['Industry P/E', result.industryPE ? formatNum(result.industryPE, 1) : '—'],
-              ['EPS', result.quote.eps ? formatNum(result.quote.eps) : '—'],
-              ['Volume', formatBigNum(result.quote.volume)],
-              ['Day High', formatNum(result.quote.dayHigh)],
-              ['Day Low', formatNum(result.quote.dayLow)],
-              ['52w High', formatNum(result.quote.fiftyTwoWeekHigh)],
+              ['Mkt Cap', result.stats.marketCap ? `₹${formatIndian(result.stats.marketCap)}` : '—'],
+              ['P/E', result.stats.pe ? formatNum(result.stats.pe, 1) : '—'],
+              ['Sector P/E', result.stats.sectorPe ? `${formatNum(result.stats.sectorPe, 1)} (${result.stats.peerCount})` : '—'],
+              ['EPS', result.stats.eps ? formatNum(result.stats.eps) : '—'],
+              ['Last Volume', formatIndian(result.stats.lastVolume)],
+              ['Avg Vol (3m)', formatIndian(result.stats.avgVolume)],
+              ['52w High', formatNum(result.stats.high52)],
+              ['52w Low', formatNum(result.stats.low52)],
             ].map(([label, val]) => (
               <div key={label} className="bg-surface px-4 py-3 text-center">
                 <p className="text-sm font-mono font-bold text-foreground">{val}</p>

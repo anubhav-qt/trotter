@@ -148,7 +148,7 @@ export function SearchBar({ onStockSelected, onResearch, selectedStock, isResear
           onChange={(e) => handleInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => results.length > 0 && !selectedStock && setIsOpen(true)}
-          placeholder="Search stocks... (e.g. AAPL, Tesla, MSFT)"
+          placeholder="Search NSE stocks... (e.g. RELIANCE, HDFC Bank, Infosys)"
           className="w-full bg-transparent py-4 pl-12 pr-32 text-foreground font-mono text-sm
                      placeholder:text-muted outline-none"
           autoComplete="off"

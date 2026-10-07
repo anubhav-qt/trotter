@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { SearchBar, type SelectedStock } from '@/components/SearchBar'
-import { ResearchPanel, type ResearchResult } from '@/components/ResearchPanel'
+import { ResearchPanel } from '@/components/ResearchPanel'
+import type { ResearchResult } from '@/lib/research-types'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Terminal } from 'lucide-react'
 
@@ -101,7 +102,7 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-4">
           <span className="hidden sm:inline text-xs font-mono text-muted">
-            v0.4.0
+            v0.5.0
           </span>
           <ThemeToggle />
         </div>
@@ -125,8 +126,8 @@ export default function Home() {
               </h2>
 
               <p className="text-sm font-mono text-muted leading-relaxed max-w-md mx-auto">
-                AI-powered stock analysis engine. Search any stock to get real-time stats,
-                sentiment scoring, and investment recommendations.
+                Quantitative scoring for NSE stocks on verified end-of-day data, with every
+                call tracked and graded against the Nifty 50.
               </p>
             </>
           )}
@@ -192,8 +193,8 @@ export default function Home() {
               <p className="text-xs font-mono text-muted mt-1">Trade Modes</p>
             </div>
             <div className="bg-surface px-6 py-5 text-center">
-              <p className="text-xl font-mono font-bold text-foreground">Live</p>
-              <p className="text-xs font-mono text-muted mt-1">Market Data</p>
+              <p className="text-xl font-mono font-bold text-foreground">NSE</p>
+              <p className="text-xs font-mono text-muted mt-1">Verified Data</p>
             </div>
           </div>
         )}

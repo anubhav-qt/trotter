@@ -15,7 +15,6 @@
     "@huggingface/transformers": "^4.2.0",
     "@langchain/core": "^1.1.45",
     "@langchain/google-genai": "^2.1.30",
-    "@tavily/core": "^0.7.3",
     "better-sqlite3": "^13.0.3",
     "html-to-image": "^1.11.13",
     "langchain": "^1.4.0",

@@ -5,17 +5,26 @@ export interface NewsArticle {
   publishedAt: string // ISO date string
 }
 
+/** Company name as people write it in headlines: "Reliance Industries Ltd." → "Reliance Industries". */
+export function newsSearchName(companyName: string): string {
+  return companyName
+    .replace(/[.,]+$/, '')
+    .replace(/\s+(limited|ltd)$/i, '')
+    .trim()
+}
+
 /**
- * Fetches recent, ticker-specific news from Yahoo Finance RSS feed.
- * This returns news that is directly about the stock, not generic search results.
+ * Fetches recent news about an NSE-listed company: Yahoo Finance's ticker
+ * feed plus Google News India searched by company name (Indian outlets rarely
+ * use the NSE symbol in headlines).
  */
-export async function fetchTickerNews(symbol: string, maxAgeDays: number = 30): Promise<NewsArticle[]> {
+export async function fetchTickerNews(symbol: string, companyName: string, maxAgeDays: number = 30): Promise<NewsArticle[]> {
   const articles: NewsArticle[] = []
   const cutoff = Date.now() - maxAgeDays * 86400000
 
   // Strategy 1: Yahoo Finance RSS feed (ticker-specific)
   try {
-    const rssUrl = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${encodeURIComponent(symbol)}&region=US&lang=en-US`
+    const rssUrl = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${encodeURIComponent(`${symbol}.NS`)}&region=IN&lang=en-IN`
     const res = await fetch(rssUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       signal: AbortSignal.timeout(8000),
@@ -39,9 +48,10 @@ export async function fetchTickerNews(symbol: string, maxAgeDays: number = 30): 
     // RSS failed, continue to fallback
   }
 
-  // Strategy 2: Google News RSS (broader coverage, still ticker-specific)
+  // Strategy 2: Google News India, exact company-name match
   try {
-    const googleUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(symbol + ' stock')}&hl=en-US&gl=US&ceid=US:en`
+    const query = `"${newsSearchName(companyName)}" when:${maxAgeDays}d`
+    const googleUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`
     const res = await fetch(googleUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       signal: AbortSignal.timeout(8000),
@@ -135,9 +145,12 @@ function extractPublisher(urlOrSource: string): string {
       'marketwatch.com': 'MarketWatch',
       'seekingalpha.com': 'Seeking Alpha',
       'fool.com': 'Motley Fool',
-      'investopedia.com': 'Investopedia',
-      'barrons.com': "Barron's",
-      'wsj.com': 'WSJ',
+      'economictimes.indiatimes.com': 'Economic Times',
+      'moneycontrol.com': 'Moneycontrol',
+      'livemint.com': 'Mint',
+      'business-standard.com': 'Business Standard',
+      'thehindubusinessline.com': 'BusinessLine',
+      'financialexpress.com': 'Financial Express',
     }
     return map[hostname] || hostname
   } catch {

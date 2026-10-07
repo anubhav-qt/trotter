@@ -1,36 +1,24 @@
 import { type NextRequest } from 'next/server'
-import YahooFinance from 'yahoo-finance2'
-
-const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] })
+import { searchWithFallback } from '@/lib/market/instruments'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const query = searchParams.get('q')
-
-  if (!query || query.trim().length < 1) {
+  const query = request.nextUrl.searchParams.get('q')?.trim() ?? ''
+  if (query.length < 1 || query.length > 60) {
     return Response.json({ results: [] })
   }
 
   try {
-    const searchResults = await yahooFinance.search(query, {
-      quotesCount: 10,
-      newsCount: 0,
-    })
-
-    const results = (searchResults.quotes || [])
-      .filter((q: Record<string, unknown>) => q.symbol && q.shortname)
-      .map((q: Record<string, unknown>) => ({
-        symbol: q.symbol as string,
-        name: (q.shortname || q.longname || '') as string,
-        exchange: (q.exchange || q.exchDisp || 'N/A') as string,
-        type: (q.quoteType || q.typeDisp || 'Equity') as string,
-      }))
-
+    const results = (await searchWithFallback(query)).map(r => ({
+      symbol: r.symbol,
+      name: r.name,
+      exchange: 'NSE',
+      type: r.industry ?? (r.inNifty500 ? 'Nifty 500' : 'Equity'),
+    }))
     return Response.json({ results })
   } catch (error) {
-    console.error('Yahoo Finance search error:', error)
+    console.error('Symbol search error:', error)
     return Response.json({ results: [], error: 'Search failed' }, { status: 500 })
   }
 }

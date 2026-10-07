@@ -39,34 +39,19 @@ interface AnalysisInfo {
   reasoning: string
 }
 
-interface UpdatedHorizon {
-  score: number
-  verdict: string
-  reasoning: string
-  targetPrice: number | null
-}
-
-export interface UpdatedAnalyses {
-  weekly: UpdatedHorizon
-  monthly: UpdatedHorizon
-  longterm: UpdatedHorizon
-}
-
 interface DeepDiveResult {
   patternName: string
   explanation: string
   boundingBox: { ymin: number; xmin: number; ymax: number; xmax: number }
-  updatedAnalysis?: UpdatedAnalyses
 }
 
 interface StockChartProps {
   symbol: string
   quote?: QuoteInfo
   analyses?: AnalysisInfo
-  onDeepDiveUpdate?: (updatedAnalysis: UpdatedAnalyses) => void
 }
 
-export function StockChart({ symbol, quote, analyses, onDeepDiveUpdate }: StockChartProps) {
+export function StockChart({ symbol, quote, analyses }: StockChartProps) {
   const [chartType, setChartType] = useState<ChartType>('line')
   const [period, setPeriod] = useState<Period>('1m')
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
@@ -74,7 +59,7 @@ export function StockChart({ symbol, quote, analyses, onDeepDiveUpdate }: StockC
   // Chart data keyed by symbol+period; loading is derived, which also
   // guards against out-of-order responses when switching periods quickly.
   const dataKey = `${symbol}:${period}`
-  const [chartData, setChartData] = useState<{ key: string; candles: Candle[] }>({ key: '', candles: [] })
+  const [chartData, setChartData] = useState<{ key: string; candles: Candle[]; source: string | null }>({ key: '', candles: [], source: null })
   const isLoading = chartData.key !== dataKey
   const candles = isLoading ? [] : chartData.candles
 
@@ -89,11 +74,11 @@ export function StockChart({ symbol, quote, analyses, onDeepDiveUpdate }: StockC
       .then(res => res.json())
       .then(data => {
         if (cancelled) return
-        setChartData({ key: dataKey, candles: data.candles || [] })
+        setChartData({ key: dataKey, candles: data.candles || [], source: data.source ?? null })
         setDeepDiveResult(null) // Reset deep dive when data changes
       })
       .catch(() => {
-        if (!cancelled) setChartData({ key: dataKey, candles: [] })
+        if (!cancelled) setChartData({ key: dataKey, candles: [], source: null })
       })
     return () => { cancelled = true }
   }, [symbol, period, dataKey])
@@ -115,11 +100,7 @@ export function StockChart({ symbol, quote, analyses, onDeepDiveUpdate }: StockC
         body: JSON.stringify({ symbol, image: dataUrl, quote, analyses, period })
       })
       if (res.ok) {
-        const data = await res.json()
-        setDeepDiveResult(data)
-        if (data.updatedAnalysis && onDeepDiveUpdate) {
-          onDeepDiveUpdate(data.updatedAnalysis)
-        }
+        setDeepDiveResult(await res.json())
       } else {
         const err = await res.json()
         setDeepDiveResult({
@@ -236,8 +217,9 @@ export function StockChart({ symbol, quote, analyses, onDeepDiveUpdate }: StockC
 
       {/* Date range footer */}
       {candles.length >= 2 && !isLoading && (
-        <div className="flex items-center justify-between px-4 py-2 border-t border-border">
+        <div className="flex items-center justify-between gap-2 px-4 py-2 border-t border-border">
           <span className="text-xs font-mono text-muted">{formatChartDate(candles[0].date, period)}</span>
+          {chartData.source && <span className="text-xs font-mono text-muted truncate">{chartData.source}</span>}
           <span className="text-xs font-mono text-muted">{formatChartDate(candles[candles.length - 1].date, period)}</span>
         </div>
       )}
@@ -253,6 +235,9 @@ export function StockChart({ symbol, quote, analyses, onDeepDiveUpdate }: StockC
               </h4>
               <p className="text-xs font-mono text-muted leading-relaxed">
                 {deepDiveResult.explanation}
+              </p>
+              <p className="text-xs font-mono text-muted mt-2 italic">
+                AI commentary only — it does not change the score, verdict or price range.
               </p>
             </div>
           </div>

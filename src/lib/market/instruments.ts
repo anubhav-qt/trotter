@@ -4,7 +4,10 @@ import { searchYahooNse } from './yahoo'
 import { BENCHMARK, INDEX_NAMES, type IndexName, type Instrument } from './types'
 
 const SYNC_KEY = 'instruments_synced_at'
+const SYNC_FAILED_KEY = 'instruments_sync_failed_at'
 const SYNC_MAX_AGE_MS = 7 * 86_400_000
+/** After a failed sync, keep using the existing list this long before trying NSE again. */
+const SYNC_RETRY_MS = 6 * 3_600_000
 
 /**
  * Refresh the instrument master from NSE: every listed equity (symbol, name,
@@ -54,12 +57,15 @@ export async function syncInstruments(): Promise<{ instruments: number; indexMem
 export async function ensureInstruments(): Promise<void> {
   const state = getSyncState(SYNC_KEY)
   if (state && Date.now() - Date.parse(state.updatedAt) < SYNC_MAX_AGE_MS) return
+  const count = () => (getDb().prepare('SELECT COUNT(*) AS n FROM instruments').get() as { n: number }).n
+  const failed = getSyncState(SYNC_FAILED_KEY)
+  if (failed && Date.now() - Date.parse(failed.updatedAt) < SYNC_RETRY_MS && count() > 0) return
   try {
     await syncInstruments()
   } catch (err) {
-    const count = (getDb().prepare('SELECT COUNT(*) AS n FROM instruments').get() as { n: number }).n
-    if (count === 0) throw new Error(`Could not load the NSE instrument list: ${(err as Error).message}`)
-    console.warn('Instrument sync failed; using the existing list:', err)
+    setSyncState(SYNC_FAILED_KEY, (err as Error).message)
+    if (count() === 0) throw new Error(`Could not load the NSE instrument list: ${(err as Error).message}`)
+    console.warn(`Instrument sync failed; using the existing list: ${(err as Error).message}`)
   }
 }
 

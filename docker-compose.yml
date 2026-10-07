@@ -1,0 +1,29 @@
+# Same file on the ThinkPad (primary) and the Oracle box (fallback):
+#   mkdir -p data && sudo chown 1000:1000 data   # once; containers run as uid 1000
+#   docker compose up -d --build
+# Secrets go in .env next to this file (see .env.example). Everything the app
+# knows lives in ./data: the SQLite database, daily backups, reports and the
+# FinBERT model cache.
+
+services:
+  app:
+    build: { context: ., target: app }
+    image: trotter-app
+    restart: unless-stopped
+    ports: ["3000:3000"]
+    env_file:
+      - path: .env
+        required: false
+    volumes: ["./data:/data"]
+
+  # Scores the universe after every NSE session (19:00 IST), grades due
+  # calls, writes a daily backup and refreshes the instrument list weekly.
+  # Run it on ONE host at a time so the two databases don't diverge.
+  worker:
+    build: { context: ., target: worker }
+    image: trotter-worker
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    volumes: ["./data:/data"]

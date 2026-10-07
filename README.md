@@ -1,105 +1,123 @@
-# 🚀 Trotter v0.4.0
-### The Advanced AI-Powered Technical Analysis & Research Engine
+# Trotter v0.5.0
+### Quantitative research for NSE stocks — scored, verified, and held to account
 
-Trotter is a professional-grade trading assistant that combines a deterministic quantitative scoring engine with Multi-Modal AI, Real-time Web Research, and Computer Vision to provide deep, actionable insights into any stock ticker. Designed for the modern trader, Trotter bridges the gap between raw data and high-conviction decision making.
+Trotter scores Indian (NSE) stocks for three horizons (1 week, 1 month, 6 months) with a deterministic model, shows a volatility-based price range instead of an invented target, and **records every call it makes and grades it later against the Nifty 50**. A backtester replays the same scoring code over past years so you can see whether the score actually has skill before trusting it.
 
----
-
-## ✨ Key Features
-
-### 🧮 Deterministic Quantitative Scoring
-Investment scores (momentum, valuation, volume, sentiment, volatility) are computed directly from market data in code — not guessed by an LLM. Searching the same ticker twice within the cache window returns the exact same score every time; re-scoring later only moves the score when the underlying market data actually changes. Gemini is used only to write the narrative reasoning and estimate target prices on top of the fixed scores.
-
-### 👁️ Computer Vision "Deep Dive"
-Harness the power of Gemini 2.5 Flash to "see" your charts.
-- **Pattern Recognition**: Automatically identifies technical patterns like Bullish Engulfing, Hammers, and Head & Shoulders.
-- **Spatial Awareness**: Highlights detected patterns with accurate bounding boxes directly on the UI.
-- **Proportionate Score Overwrites**: Visual findings can adjust the dashboard's scores, verdicts, and price targets, capped to a reasonable delta from the quantitative baseline.
-
-### 🧠 Multi-Horizon Analysis
-Why settle for one perspective? Trotter evaluates every stock across three distinct timeframes simultaneously:
-- **Weekly**: Optimized for swing trading (1-5 days).
-- **Monthly**: Focused on medium-term trends (2-8 weeks).
-- **Long-term**: Geared towards fundamental value (6mo+).
-
-### 📰 Deep Sentiment Analysis (FinBERT)
-Aggregates news from **Yahoo Finance** and **Google News** for a full 30-day window, deduplicated across sources. Every article is classified as Positive, Negative, or Neutral using the **FinBERT** transformer model (batched for throughput), providing a quantified view of market sentiment that directly feeds the sentiment score.
-
-### 🌐 Live Industry Grounding (Tavily)
-Real-time web research to ground AI commentary in current market reality:
-- **Industry P/E Comparison**: Uses Tavily Search to retrieve up-to-date average P/E ratios for the stock's sector.
-- **Grounded Commentary**: Analyst reasoning and target prices are backed by the latest industry benchmarks.
-
-### ⚡ Response Caching
-Completed research is cached per symbol for 10 minutes, so repeat searches are instant and byte-for-byte identical instead of re-running the full pipeline.
-
-### 📊 Professional Technical Charting
-- **Standard Aesthetics**: Clean, Red/Green candlestick rendering.
-- **Bollinger Bands**: Integrated 20-period bands (SMA + StdDev) for identifying overbought/oversold levels.
-- **Volume Pane**: Visualizes buying and selling pressure directly on the chart.
+> Trotter is a research tool, not financial advice. A score is only worth what its backtest and track record show.
 
 ---
 
-## 🛠️ Tech Stack
+## How it works
 
-- **Framework**: [Next.js](https://nextjs.org/) (App Router, Turbopack)
-- **Scoring**: Deterministic quantitative engine (`src/lib/scoring.ts`) — momentum, valuation, volume, sentiment, and volatility computed from market data.
-- **AI Models**:
-  - **Gemini 2.5 Flash**: Multi-modal chart vision and analyst narrative generation.
-  - **FinBERT**: Deep learning sentiment analysis for financial text.
-- **APIs**:
-  - **Tavily Search**: AI-optimized web retrieval for live market grounding.
-  - **Yahoo Finance**: Real-time quotes, historical data, and RSS news feeds.
-- **Styling**: Minimalist, high-contrast Dark Mode with Vanilla CSS.
+```
+NSE archives ─┐ (equity list, Nifty index members + industry, official daily closes)
+Upstox  ──────┼─► SQLite (./data/trotter.db) ─► scoring ─► ranges ─► track record
+Yahoo   ──────┘   (database first, sources       (pure function   (graded vs Nifty 50
+                  as fallbacks, cross-checked)     of daily bars)    after each horizon)
+```
 
-Both `GOOGLE_API_KEY` and `TAVILY_API_KEY` are optional — Trotter degrades gracefully to quantitative-only scoring without AI commentary or industry P/E grounding if either is missing.
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js 18+ 
-- A Google AI (Gemini) API Key
-- A Tavily API Key
-
-### Installation
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/anubhav-qt/trotter.git
-   cd trotter
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Set up Environment Variables**:
-   Create a `.env.local` file in the root directory:
-   ```env
-   GOOGLE_API_KEY=your_gemini_key_here
-   TAVILY_API_KEY=your_tavily_key_here
-   ```
-
-4. **Run the development server**:
-   ```bash
-   npm run dev
-   ```
-
-5. **Open the App**:
-   Navigate to [http://localhost:3000](http://localhost:3000).
+- **Data, free and account-less.** Daily history comes from Upstox's public candle API, with Yahoo Finance as the fallback. The instrument list, Nifty 50/100/200/500 membership, industries and NSE's own official closing prices come from NSE's archive files. Everything is stored in SQLite, so each stock's history is downloaded once and then updated incrementally.
+- **Data checks.** Unfinished sessions are dropped. Re-adjusted history (splits, bonuses) is detected and reloaded. A series with an unexplained >30% jump or a stalled feed loses to a cleaner source. The latest close is cross-checked against NSE's official file. Problems are shown in the UI as warnings rather than hidden.
+- **Scoring (`src/lib/scoring.ts`).** Momentum, valuation (P/E vs the median of Nifty 500 industry peers), volume (last full session vs the 3-month average), news sentiment (FinBERT on Indian news) and volatility, out of 100. It is a pure function of completed daily bars, so the live app and the backtest run the same code. `MODEL_VERSION` tags every call.
+- **Price ranges (`src/lib/ranges.ts`).** An 80% range per horizon, built from recent volatility that fades toward the stock's 1-year norm. It says how far the price typically moves, not which way.
+- **AI is optional and never sets numbers.** Gemini only writes the plain-language reasoning and the chart "Deep Dive" commentary. Without `GOOGLE_API_KEY` everything else works.
+- **Track record (`src/lib/track-record.ts`).** Each research run, plus a daily snapshot of a whole index, is recorded. When a call's horizon has passed, it is graded: did BUY calls beat the Nifty 50, did AVOID calls lag it, did the price land inside the range?
 
 ---
 
-## 📈 Roadmap
+## Run it locally
 
-- [ ] **Native DL Scoring Model**: Implementing a custom PyTorch/TensorFlow model for native pattern scoring.
-- [ ] **Leaderboard**: Background task to track and rank the top "strong buy" opportunities in the Indian and Global markets.
-- [ ] **Custom Indicators**: Adding RSI, MACD, and EMA cross-overlays to the vision engine.
+```bash
+npm install
+cp .env.example .env.local   # all optional
+npm run sync                 # load the NSE instrument list (also happens automatically)
+npm run dev                  # http://localhost:3000
+```
+
+Requires Node.js 22+.
+
+### Jobs
+
+| Command | What it does |
+|---|---|
+| `npm run sync` | Refresh NSE equities, ISINs, index membership and industries |
+| `npm run backtest -- --universe "NIFTY 100"` | Walk-forward backtest; report saved to `data/reports/` |
+| `npm run snapshot -- --universe "NIFTY 50"` | Score every stock in the index and record the calls (`--no-news` to skip FinBERT) |
+| `npm run grade` | Grade calls whose horizon has passed |
+| `npm run backup` | Consistent copy of the database to `data/backups/` (keeps 7) |
+| `npm run worker` | Scheduler: snapshot + grade + backup every weekday at 19:00 IST, instrument sync on Mondays (`-- --now` to run immediately) |
+
+### Reading the backtest
+
+The first backtest downloads ~10 years of history per stock, which takes a few minutes; later runs come from the database.
+
+- **IC** is the rank correlation between the score and the next N sessions' return. 0 means no skill; 0.02–0.05 is typical of real, modest signals; t ≥ 2 means it is unlikely to be luck.
+- **Quintile spread** is the average return of the top 20% by score minus the bottom 20%.
+- **Per-factor IC** shows which ingredients help and which hurt, so you know what to re-weight.
+- **Range coverage** shows how often the "80%" range actually held.
+- The report lists its caveats. In particular, the universe is today's index members (survivorship bias), and P/E and news have no point-in-time history, so only the price-based factors are truly tested. The live track record covers the rest.
 
 ---
 
-## ⚖️ Disclaimer
-*Trotter is an AI-powered research tool. All information provided is for educational purposes only and does not constitute financial advice. Always perform your own due diligence before making investment decisions.*
+## Deploy with Docker (ThinkPad primary, Oracle Cloud fallback)
+
+The same `docker-compose.yml` runs on both machines. It builds natively on x86_64 and on Oracle's ARM (Ampere) instances.
+
+```bash
+mkdir -p data && sudo chown 1000:1000 data   # once; containers run as uid 1000
+cp .env.example .env                         # optional keys
+docker compose up -d --build
+```
+
+- `app` is the web UI on port 3000, with a healthcheck at `/api/health`.
+- `worker` runs the daily jobs. **Run the worker on one host at a time** so the two databases don't diverge.
+- Everything lives in `./data`: `trotter.db`, `backups/`, `reports/`, and the FinBERT model cache (downloaded on first use).
+
+**Keeping the fallback warm.** The worker writes `data/backups/trotter-YYYY-MM-DD.db` every evening. Copy those to Oracle, e.g. with a ThinkPad cron entry at 20:00 IST:
+
+```bash
+rsync -a ~/trotter/data/backups/ oracle:~/trotter/data/backups/
+```
+
+**Failing over.** On Oracle, start from the newest backup:
+
+```bash
+cp data/backups/$(ls data/backups | tail -1) data/trotter.db
+docker compose up -d
+```
+
+NSE sometimes blocks cloud-provider IP ranges. If that happens on Oracle, prices still flow from Upstox and Yahoo; only the official-close cross-check shows "not cross-checked".
+
+---
+
+## Configuration
+
+See `.env.example`. All variables are optional:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GOOGLE_API_KEY` | — | Gemini reasoning and Deep Dive |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Override when Google retires a model |
+| `UPSTOX_ACCESS_TOKEN` | — | Higher Upstox rate limits (not required) |
+| `TROTTER_DB_PATH` | `./data/trotter.db` | Database location |
+| `TROTTER_HISTORY_SOURCES` | `upstox,yahoo` | Source priority |
+| `TROTTER_HISTORY_YEARS` | `10` | History depth on first download |
+| `TROTTER_UNIVERSE` | `NIFTY 50` | Index the daily snapshot scores |
+| `TROTTER_SNAPSHOT_NEWS` | `true` | Run FinBERT during snapshots |
+| `TROTTER_MODEL_CACHE` | inside `node_modules` | FinBERT model cache directory |
+
+## Development
+
+```bash
+npm test          # Vitest: parsers, data fallbacks, scoring golden test, range calibration, backtester, grading
+npm run typecheck
+npm run lint
+```
+
+CI (`.github/workflows/ci.yml`) runs lint, typecheck, tests and a production build on every push and pull request.
+
+## Known limits
+
+- Scores use end-of-day data only. Intraday charts (1D/1W) come from Yahoo for display and are never scored.
+- P/E and EPS come from Yahoo, the only free source. Sector P/E is computed from those snapshots across Nifty 500 peers.
+- Exchange holidays aren't modelled explicitly. The data layer backs off when an expected session doesn't appear.

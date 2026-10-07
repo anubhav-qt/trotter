@@ -1,5 +1,8 @@
-import { setSyncState } from '@/lib/db'
+import fs from 'node:fs'
+import path from 'node:path'
+import { dbPath, getDb, setSyncState } from '@/lib/db'
 import { ensureInstruments, getIndexMembers } from '@/lib/market/instruments'
+import { istDate } from '@/lib/market/time'
 import type { IndexName } from '@/lib/market/types'
 import { runResearch } from '@/lib/research'
 import { gradePending } from '@/lib/track-record'
@@ -25,4 +28,19 @@ export async function runSnapshot(universe: IndexName, opts: { news: boolean }):
   const { graded, pending, errors } = await gradePending()
   for (const e of errors) log(`  ${e}`)
   log(`Recorded ${ok}/${symbols.length}. Graded ${graded} past calls; ${pending} pending.`)
+}
+
+/**
+ * Consistent online copy of the database (safe while the app is running),
+ * keeping the newest `keep`. Copy one to the fallback host to restore there.
+ */
+export async function runBackup(keep = 7): Promise<string> {
+  const dir = path.join(path.dirname(dbPath()), 'backups')
+  fs.mkdirSync(dir, { recursive: true })
+  const file = path.join(dir, `trotter-${istDate()}.db`)
+  await getDb().backup(file)
+  const old = fs.readdirSync(dir).filter(f => /^trotter-\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort().slice(0, -keep)
+  for (const f of old) fs.rmSync(path.join(dir, f))
+  log(`Backup written to ${file}`)
+  return file
 }

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getIndexMembers, getIndustryPeers, getInstrument, searchInstruments, syncInstruments } from '@/lib/market/instruments'
+import { ensureInstruments, getIndexMembers, getIndustryPeers, getInstrument, searchInstruments, syncInstruments } from '@/lib/market/instruments'
+import { getDb } from '@/lib/db'
 import { fetchEquityList, fetchFullBhavcopy, fetchIndexConstituents, parseEquityList, parseFullBhavcopy, parseIndexList } from '@/lib/market/nse'
 import { compareClose, verifyLatestClose } from '@/lib/market/verify'
 import type { IndexName } from '@/lib/market/types'
@@ -42,6 +43,24 @@ describe('instrument master', () => {
     expect(searchInstruments('m&m')[0]).toMatchObject({ symbol: 'M&M', inNifty500: true })
     expect(searchInstruments('micro')[0]).toMatchObject({ symbol: '20MICRONS', inNifty500: false })
     expect(searchInstruments('100%')).toEqual([])
+  })
+})
+
+describe('instrument sync scheduling', () => {
+  it('keeps a usable list and stops retrying NSE for a while after a failed sync', async () => {
+    // Age the last successful sync past a week, so a new one is due.
+    getDb().prepare("UPDATE sync_state SET updated_at = '2026-01-01T00:00:00Z' WHERE key = 'instruments_synced_at'").run()
+    vi.mocked(fetchEquityList).mockClear().mockRejectedValue(new Error('HTTP 403 from nsearchives.nseindia.com'))
+    await ensureInstruments() // fails quietly: we still have instruments
+    await ensureInstruments() // backs off: no second attempt
+    expect(fetchEquityList).toHaveBeenCalledTimes(1)
+    expect(getInstrument('RELIANCE')).not.toBeNull()
+  })
+
+  it('fails loudly when there is no list at all', async () => {
+    freshDb()
+    vi.mocked(fetchEquityList).mockRejectedValue(new Error('HTTP 403'))
+    await expect(ensureInstruments()).rejects.toThrow(/Could not load the NSE instrument list/)
   })
 })
 

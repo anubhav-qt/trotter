@@ -1,4 +1,8 @@
-import { pipeline, type TextClassificationPipeline } from '@huggingface/transformers'
+import { env, pipeline, type TextClassificationPipeline } from '@huggingface/transformers'
+
+// The model is downloaded on first use. By default it is cached inside
+// node_modules; containers point this at the persistent data volume instead.
+if (process.env.TROTTER_MODEL_CACHE) env.cacheDir = process.env.TROTTER_MODEL_CACHE
 
 // Lazy singleton with in-flight dedup so concurrent requests don't load the model twice.
 let classifierPromise: Promise<TextClassificationPipeline> | null = null

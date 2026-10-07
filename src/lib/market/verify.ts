@@ -17,6 +17,9 @@ export interface Verification {
 const MATCH_TOLERANCE = 0.01
 /** A session with no file yet is re-checked at most this often. */
 const MISSING_RETRY_MS = 60 * 60_000
+/** After a failed download (e.g. NSE blocking the IP), don't retry that date for this long. */
+const FAILURE_BACKOFF_MS = 10 * 60_000
+const recentFailures = new Map<string, number>()
 
 export function storeBhavcopy(date: string, rows: OfficialBar[]): void {
   const db = getDb()
@@ -46,6 +49,8 @@ export async function ensureBhavcopy(date: string): Promise<boolean> {
     .get(date) as { status: string; fetched_at: string } | undefined
   if (file?.status === 'ok') return true
   if (file && Date.now() - Date.parse(file.fetched_at) < MISSING_RETRY_MS) return false
+  const failedAt = recentFailures.get(date)
+  if (failedAt && Date.now() - failedAt < FAILURE_BACKOFF_MS) return false
 
   try {
     const rows = await fetchFullBhavcopy(date)
@@ -56,7 +61,8 @@ export async function ensureBhavcopy(date: string): Promise<boolean> {
     storeBhavcopy(date, rows)
     return true
   } catch (err) {
-    console.warn(`NSE bhavcopy for ${date} unavailable:`, err)
+    recentFailures.set(date, Date.now())
+    console.warn(`NSE bhavcopy for ${date} unavailable: ${(err as Error).message}`)
     return false
   }
 }
@@ -87,7 +93,7 @@ export async function verifyLatestClose(symbol: string, bars: DailyBar[]): Promi
 
   await ensureBhavcopy(last.date)
   const official = getOfficialClose(symbol, last.date)
-  if (!official) return none(`NSE's official file for ${last.date} isn't available yet.`)
+  if (!official) return none(`Not cross-checked: NSE's official file for ${last.date} couldn't be loaded (not published yet, or NSE unreachable).`)
 
   const { status, diffPct } = compareClose(last.close, official.close)
   return {

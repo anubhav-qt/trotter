@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { findSuspiciousJumps, getDailyHistory, loadBars, needsRefresh, sanitizeBars, wasReadjusted } from '@/lib/market/history'
+import { findSuspiciousJumps, getDailyHistory, isLagging, loadBars, needsRefresh, sanitizeBars, wasReadjusted } from '@/lib/market/history'
 import { fetchUpstoxDaily } from '@/lib/market/upstox'
 import { fetchYahooDaily } from '@/lib/market/yahoo'
 import { getDb } from '@/lib/db'
@@ -73,6 +73,11 @@ describe('series checks', () => {
     const halved = stored.slice(-3).map(b => ({ ...b, close: b.close / 2 }))
     expect(wasReadjusted(stored, same)).toBe(false)
     expect(wasReadjusted(stored, halved)).toBe(true)
+  })
+
+  it('tolerates holiday gaps but not stalled feeds', () => {
+    expect(isLagging('2026-10-02', NOW)).toBe(false) // Diwali-length gap
+    expect(isLagging('2026-09-25', NOW)).toBe(true)
   })
 
   it('refreshes when the expected session is missing, but backs off on holidays', () => {
@@ -164,6 +169,25 @@ describe('getDailyHistory', () => {
     expect(after.bars).toHaveLength(300)
     expect(after.bars[0].close).toBeCloseTo(all[0].close / 2)
     expect(loadBars('RELIANCE', 'upstox')).toHaveLength(300)
+  })
+
+  it('flags a stalled feed and prefers a source that is current', async () => {
+    seedInstrument()
+    const bars = barsEndingOct7(300)
+    upstox.mockResolvedValue(bars.slice(0, -30)) // stopped updating six weeks ago
+    yahoo.mockResolvedValue(bars)
+    const res = await getDailyHistory('RELIANCE', { now: NOW })
+    expect(res.source).toBe('yahoo')
+    expect(res.warnings.join(' ')).toMatch(/latest session is .* well behind 2026-10-07/)
+  })
+
+  it('still serves a lagging series, with the warning, when it is all there is', async () => {
+    seedInstrument()
+    upstox.mockResolvedValue(barsEndingOct7(300).slice(0, -30))
+    yahoo.mockResolvedValue([])
+    const res = await getDailyHistory('RELIANCE', { now: NOW })
+    expect(res.source).toBe('upstox')
+    expect(res.warnings.join(' ')).toMatch(/suspended or the feed stalled/)
   })
 
   it('throws a clear error when nothing is available', async () => {

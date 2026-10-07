@@ -28,6 +28,9 @@ const RETRY_AFTER_MS = 60 * 60_000
 const OVERLAP_DAYS = 14
 /** Overlapping closes differing by more than this mean the provider re-adjusted history. */
 const READJUST_TOLERANCE = 0.005
+/** Latest bar this many calendar days behind the expected session means the feed has stalled
+ *  (covers multi-day exchange holidays such as Diwali). */
+const MAX_LAG_DAYS = 5
 /** NSE stocks are capped at a 20% daily band; moves beyond these smell like an unadjusted split/bonus. */
 const JUMP_DOWN = -0.3
 const JUMP_UP = 0.4
@@ -73,6 +76,11 @@ export function wasReadjusted(stored: DailyBar[], recent: DailyBar[]): boolean {
     const old = storedClose.get(b.date)
     return old !== undefined && Math.abs(b.close / old - 1) > READJUST_TOLERANCE
   })
+}
+
+/** Whether a series ending on `lastDate` is too far behind the newest session we could expect. */
+export function isLagging(lastDate: string, now: Date): boolean {
+  return lastDate < addDays(expectedLastSession(now), -MAX_LAG_DAYS)
 }
 
 export function needsRefresh(lastDate: string | null, fetchedAt: string | null, now: Date): boolean {
@@ -181,6 +189,12 @@ export async function getDailyHistory(symbol: string, opts: { now?: Date } = {})
     }
 
     const candidate: HistoryResult = { symbol, bars, source, fetchedAt, stale, warnings: [] }
+    const lastDate = bars[bars.length - 1].date
+    if (isLagging(lastDate, now)) {
+      warnings.push(`${label}'s latest session is ${lastDate}, well behind ${expectedLastSession(now)} — the stock may be suspended or the feed stalled.`)
+      fallback ??= candidate
+      continue
+    }
     const jumps = findSuspiciousJumps(bars)
     if (jumps.length > 0) {
       const last = jumps[jumps.length - 1]

@@ -63,6 +63,14 @@ describe('NSE cross-check', () => {
     expect(fetchFullBhavcopy).toHaveBeenCalledTimes(1) // one file serves every symbol
   })
 
+  it('backs off after a failed download instead of retrying for every stock', async () => {
+    vi.mocked(fetchFullBhavcopy).mockRejectedValue(new Error('HTTP 403 from nsearchives.nseindia.com'))
+    const bar5 = { ...bar(1390.65), date: '2026-10-05' }
+    expect((await verifyLatestClose('RELIANCE', [bar5])).status).toBe('unavailable')
+    expect((await verifyLatestClose('HDFCBANK', [bar5])).status).toBe('unavailable')
+    expect(fetchFullBhavcopy).toHaveBeenCalledTimes(1)
+  })
+
   it('reports unavailable when NSE has not published the file', async () => {
     vi.mocked(fetchFullBhavcopy).mockResolvedValue(null)
     const res = await verifyLatestClose('RELIANCE', [bar(1390.65)])

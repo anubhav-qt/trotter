@@ -1,0 +1,18 @@
+{
+	"name": "@trotter/pi-ai",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Trotter's hard fork of pi-ai (earendil-works/pi, MIT): four streaming APIs (Gemini, Anthropic Messages, OpenAI Responses, OpenAI Chat Completions), changed for Trotter only",
+	"license": "MIT",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@anthropic-ai/sdk": "0.129.0",
+		"@google/genai": "2.21.0",
+		"openai": "7.19.0",
+		"partial-json": "0.1.7",
+		"typebox": "1.3.27"
+	}
+}

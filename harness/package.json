@@ -1,0 +1,20 @@
+{
+	"name": "trotter-harness",
+	"private": true,
+	"description": "The Trotter agent: a hard fork of pi, with models from the owner's subscriptions through CLIProxyAPI",
+	"type": "module",
+	"workspaces": [
+		"packages/*"
+	],
+	"engines": {
+		"node": ">=24"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"cliproxy": "node --env-file-if-exists=.env.local scripts/cliproxy.mjs"
+	},
+	"devDependencies": {
+		"@types/node": "24.19.2",
+		"typescript": "7.0.2"
+	}
+}

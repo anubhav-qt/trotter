@@ -1,0 +1,15 @@
+{
+	"name": "@trotter/pi-agent",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Trotter's hard fork of pi-agent-core (earendil-works/pi, MIT): the agent loop, tool execution and its events, changed for Trotter only",
+	"license": "MIT",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@trotter/pi-ai": "0.1.0",
+		"typebox": "1.3.27"
+	}
+}

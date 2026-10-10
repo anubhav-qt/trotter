@@ -1,6 +1,6 @@
 # 0012. An Auditor chat that reviews every change and can undo it
 
-Status: Accepted; amended by [0013](0013-trader-chat-per-stock-and-trade-master.md)
+Status: Accepted; amended by [0013](0013-trader-chat-per-stock-and-trade-master.md), [0022](0022-trader-chats-take-their-time.md)
 Date: 2026-10-11
 
 See also: [ADR index](README.md) · depends on [0010](0010-lessons-from-losses.md), [0011](0011-fully-autonomous-agent.md)

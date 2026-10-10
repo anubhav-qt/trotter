@@ -29,7 +29,7 @@ The most beautiful code is the easiest to read and still does the job just as we
 - **Money is integer paise**, quantities are integer shares. Never add up money in floating point.
 - **Time** is stored as UTC ISO 8601 strings. A trading day is a `YYYY-MM-DD` date in India time (Asia/Kolkata). Convert only at the edges.
 - **Point in time.** Every stored fact records when it became known (`knownAt`). A backtest or a model may only use what was known at its moment. Nothing is overwritten; corrections are new rows.
-- **The LLM never computes a number the engine relies on**, and never enforces a limit. The engine does both and can't be changed by the agent.
+- **The LLM reads and analyses; code calculates.** The LLM reads the material (a filing's OCR text and the PDF itself, an article, a transcript) and returns its analysis and the figures it found as schema-checked JSON. Code does every calculation on that JSON and enforces every limit; the agent can't change either. Where an official structured source has the same figure (XBRL results, NSE files), code checks the LLM's figure against it and flags a mismatch.
 
 ## 4. Errors
 

@@ -50,7 +50,7 @@ npm run models                         # signed-in accounts and their models
 Follow [docs/ENGINEERING.md](docs/ENGINEERING.md). The ones that matter every time:
 
 - The easiest code to read wins. One step per line, plain `if`/`else`, small well named functions.
-- The LLM never computes numbers or enforces risk.
+- The LLM reads and analyses, returning schema-checked JSON; code does every calculation on it and enforces risk.
 - Agent tools are data tools (reach outside Trotter: ask the owner about every unsettled choice before building one) or system tools (Trotter's own records and the engine: design them yourself) ([0015](docs/adr/0015-data-tools-and-system-tools.md)).
 - Ask the owner one question at a time, and ask for design direction before any UI.
 - No em dashes or en dashes anywhere. Secrets never go into chat.

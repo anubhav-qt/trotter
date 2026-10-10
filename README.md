@@ -4,7 +4,9 @@ Trotter is being rebuilt from scratch as a personal algorithmic trading system f
 
 - **Trotter**: the desktop app (Tauri) over everything here, and the name of its AI agent.
 - **harness**: the Trotter agent, a hard fork of [pi](https://github.com/earendil-works/pi) with models from your own subscriptions through [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI).
-- **trotter_trader**: the Rust engine for data, scores, risk and orders (coming).
+- **trotter_trader**: the engine for data, scores, risk and orders (coming).
+
+Everything is TypeScript on Node 24, with Python only for training models.
 
 ## The agent's models
 

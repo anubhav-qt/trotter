@@ -6,7 +6,7 @@ Personal algorithmic trading for NSE equities (swing trades, paper trading first
 
 ## How it fits together
 
-The harness gathers and analyses each day's data, the engine turns it into scores and a shortlist, the agent picks trades from the shortlist, and the engine checks every order against limits it owns ([ADR 0006](docs/adr/0006-agent-picks-engine-enforces.md)). Everything is TypeScript on Node 24, with no build step ([0004](docs/adr/0004-typescript-everywhere.md)).
+The harness gathers and analyses each day's data, the engine turns it into scores and a shortlist, the agent picks trades from the shortlist, and the engine checks every order against limits it owns ([ADR 0006](docs/adr/0006-agent-picks-engine-enforces.md)). A Lessons chat studies every losing trade and keeps a capped set of lessons the trading agent follows ([0010](docs/adr/0010-lessons-from-losses.md)), so every decision is stored with its reasoning and the data it saw. The agent is fully autonomous: no tool ever asks for approval, and the owner-set hard limits and kill switch are its only bounds ([0011](docs/adr/0011-fully-autonomous-agent.md)). Everything is TypeScript on Node 24, with no build step ([0004](docs/adr/0004-typescript-everywhere.md)).
 
 | Path | What | Status |
 |---|---|---|

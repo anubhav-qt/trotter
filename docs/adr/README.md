@@ -15,3 +15,5 @@ Format: `NNNN-short-title.md` with Status, Date, See also, then Context, Decisio
 | [0007](0007-tauri-app-and-separate-processes.md) | Trotter is a Tauri desktop app; the engine and agent are their own processes | Closing the window never stops trading or a scheduled run. |
 | [0008](0008-charts-from-numbers-and-own-cnn.md) | Charts: exact patterns from numbers, plus our own chart CNN | No vision LLM on screenshots; our own CNN on charts we render; the GPU also for local news models and OCR. |
 | [0009](0009-one-workspace-biome-node-test.md) | One npm workspace, checked by Biome, tsc and node:test | `npm run check` gates every change; no build step. |
+| [0010](0010-lessons-from-losses.md) | A Lessons chat that learns from losing trades | After every loss and weekly, it finds the cause, links past lessons and rewrites a capped set of lessons that go live automatically; never touches risk limits. |
+| [0011](0011-fully-autonomous-agent.md) | The agent is fully autonomous: no approvals anywhere | No tool asks first; the owner-set hard limits and kill switch are the only bounds; the daily broker 2FA login stays a human step at go-live. |

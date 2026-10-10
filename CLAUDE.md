@@ -22,7 +22,8 @@ Personal algorithmic trading for any stock listed on NSE or BSE (swing trades, p
 |---|---|---|
 | `packages/pi-ai`, `packages/pi-agent` | Hard fork of pi (MIT, LICENSE kept), trimmed to the 4 APIs CLIProxyAPI serves ([0005](docs/adr/0005-pi-fork-and-cliproxyapi.md)) | Done |
 | `packages/schemas` | `@trotter/schemas`: the shared data format ([0023](docs/adr/0023-the-shared-data-format.md)): versioned records, chats, runs, the action log, every handover, fact records, and `checkValue` for every boundary | Done for agents; fact kinds come with each data tool, engine messages with the engine |
-| `harness/` | The Trotter agents (trader chats, Trade Master, Lessons, Auditor). `.cliproxy/` holds CLIProxyAPI v8.0.23; keys in `.env.local` | Proxy runs; 2 Antigravity accounts signed in. Agent not built |
+| `packages/store` | `@trotter/store`: the one SQLite database, on `node:sqlite` ([0024](docs/adr/0024-storage-and-the-run-loop.md)): chats, runs, transcripts, the action log and every record version, append-only, with version order enforced | Done for agents |
+| `harness/` | The Trotter agents (trader chats, Trade Master, Lessons, Auditor). `.cliproxy/` holds CLIProxyAPI v8.0.23; keys in `.env.local` | Proxy runs; 2 Antigravity accounts signed in. `runChat` runs a chat on pi, storing every message and tool call as it happens. No tools, prompts, compaction or schedule yet |
 | `trotter_trader/` | The engine: data, scores, risk, paper and live broker, CLI | Not started |
 | `app/` | Trotter, the Tauri v2 desktop app ([0007](docs/adr/0007-tauri-app-and-separate-processes.md)) | Not started |
 | `prompts/` | Every agent prompt, as Nunjucks templates; no prompt text in code ([0020](docs/adr/0020-prompts-as-nunjucks-templates.md)) | Not started |
@@ -44,8 +45,9 @@ npm run models                         # signed-in accounts and their models
 
 ## Next
 
-1. The agent's core loop on the forked pi: chats, runs, the action log and storage for versioned records.
-2. Its system tools, then its data tools (asking the owner first, per [DATA.md](docs/DATA.md)).
+1. The first system tools and prompt templates, and models from CLIProxyAPI's catalog, so a chat runs on a real model.
+2. Compaction ([0014](docs/adr/0014-every-chat-compacts-itself.md)), then the harness process that schedules and wakes chats.
+3. Data tools (asking the owner first, per [DATA.md](docs/DATA.md)).
 
 ## Rules
 

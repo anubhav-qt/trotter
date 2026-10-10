@@ -14,7 +14,7 @@
 		"check": "biome check . && tsc --noEmit && npm test",
 		"fix": "biome check --write .",
 		"typecheck": "tsc --noEmit",
-		"test": "node --test \"packages/*/test/**/*.test.ts\"",
+		"test": "node --test \"packages/*/test/**/*.test.ts\" \"harness/test/**/*.test.ts\"",
 		"cliproxy": "npm run cliproxy -w @trotter/harness --",
 		"models": "npm run models -w @trotter/harness"
 	},

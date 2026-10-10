@@ -10,6 +10,9 @@
 	},
 	"dependencies": {
 		"@trotter/pi-agent": "0.1.0",
-		"@trotter/pi-ai": "0.1.0"
+		"@trotter/pi-ai": "0.1.0",
+		"@trotter/schemas": "0.1.0",
+		"@trotter/store": "0.1.0",
+		"typebox": "1.3.27"
 	}
 }

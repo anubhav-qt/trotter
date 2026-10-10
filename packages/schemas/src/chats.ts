@@ -31,6 +31,15 @@ export const RunTrigger = Type.Union([
 	Type.Object({ kind: Type.Literal("record"), record: RecordRef }, CLOSED),
 ]);
 
+/**
+ * - running: under way; a chat has one at a time.
+ * - done: the model finished.
+ * - failed: the model or the harness hit an error, named in `error`.
+ * - stopped: stopped on purpose before it finished.
+ * - interrupted: the harness stopped while it ran.
+ */
+export const RunStatus = Type.Enum(["running", "done", "failed", "stopped", "interrupted"]);
+
 /** One wake of a chat. Several triggers can arrive together and wake it once. */
 export const Run = Type.Object(
 	{
@@ -39,6 +48,10 @@ export const Run = Type.Object(
 		model: Text,
 		startedAt: UtcTimestamp,
 		triggers: Type.Array(RunTrigger, { minItems: 1 }),
+		systemPrompt: Type.String({ description: "What the chat was told for this run" }),
+		status: RunStatus,
+		endedAt: Type.Optional(UtcTimestamp),
+		error: Type.Optional(Text),
 	},
 	CLOSED,
 );
@@ -48,6 +61,7 @@ export const ActionLogEntry = Type.Object(
 	{
 		id: RecordId,
 		runId: RecordId,
+		toolCallId: Type.String({ minLength: 1, description: "The call's id in the transcript" }),
 		at: UtcTimestamp,
 		tool: Text,
 		arguments: Type.Unknown(),
@@ -65,5 +79,6 @@ export const ActionLogEntry = Type.Object(
 export type ChatRole = Static<typeof ChatRole>;
 export type Chat = Static<typeof Chat>;
 export type RunTrigger = Static<typeof RunTrigger>;
+export type RunStatus = Static<typeof RunStatus>;
 export type Run = Static<typeof Run>;
 export type ActionLogEntry = Static<typeof ActionLogEntry>;

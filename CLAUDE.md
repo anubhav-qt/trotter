@@ -21,6 +21,7 @@ Personal algorithmic trading for any stock listed on NSE or BSE (swing trades, p
 | Path | What | Status |
 |---|---|---|
 | `packages/pi-ai`, `packages/pi-agent` | Hard fork of pi (MIT, LICENSE kept), trimmed to the 4 APIs CLIProxyAPI serves ([0005](docs/adr/0005-pi-fork-and-cliproxyapi.md)) | Done |
+| `packages/schemas` | `@trotter/schemas`: the shared data format ([0023](docs/adr/0023-the-shared-data-format.md)): versioned records, chats, runs, the action log, every handover, fact records, and `checkValue` for every boundary | Done for agents; fact kinds come with each data tool, engine messages with the engine |
 | `harness/` | The Trotter agents (trader chats, Trade Master, Lessons, Auditor). `.cliproxy/` holds CLIProxyAPI v8.0.23; keys in `.env.local` | Proxy runs; 2 Antigravity accounts signed in. Agent not built |
 | `trotter_trader/` | The engine: data, scores, risk, paper and live broker, CLI | Not started |
 | `app/` | Trotter, the Tauri v2 desktop app ([0007](docs/adr/0007-tauri-app-and-separate-processes.md)) | Not started |
@@ -43,8 +44,8 @@ npm run models                         # signed-in accounts and their models
 
 ## Next
 
-1. The data format between the harness and the engine, as a shared package in `packages/`.
-2. The agent's core loop on the forked pi, then its data tools.
+1. The agent's core loop on the forked pi: chats, runs, the action log and storage for versioned records.
+2. Its system tools, then its data tools (asking the owner first, per [DATA.md](docs/DATA.md)).
 
 ## Rules
 
@@ -53,7 +54,7 @@ Follow [docs/ENGINEERING.md](docs/ENGINEERING.md). The ones that matter every ti
 - The easiest code to read wins. One step per line, plain `if`/`else`, small well named functions.
 - The LLM reads and analyses, returning schema-checked JSON; code does every calculation on it and enforces risk.
 - Reuse proven open source for everything that isn't Trotter's own logic; a tool in another language runs as its own process ([0021](docs/adr/0021-reuse-proven-open-source.md)).
-- Agents never read each other's raw output: every handover is metrics in a schema plus free text reasoning, validated and stored by code, then rendered into the next agent's input from a template ([0018](docs/adr/0018-agents-hand-over-json.md)).
+- Agents never read each other's raw output: every handover is metrics in a schema plus free text reasoning, validated and stored by code, then rendered into the next agent's input from a template ([0018](docs/adr/0018-agents-hand-over-json.md)). Every schema lives in `@trotter/schemas`, and every boundary uses its `checkValue`.
 - Agent tools are data tools (reach outside Trotter: ask the owner about every unsettled choice before building one) or system tools (Trotter's own records and the engine: design them yourself) ([0015](docs/adr/0015-data-tools-and-system-tools.md)).
 - Ask the owner one question at a time, and ask for design direction before any UI.
 - No em dashes or en dashes anywhere. Secrets never go into chat.

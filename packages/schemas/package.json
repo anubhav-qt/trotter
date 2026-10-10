@@ -1,0 +1,13 @@
+{
+	"name": "@trotter/schemas",
+	"version": "0.1.0",
+	"private": true,
+	"description": "The data format shared by the harness, the engine and the app: typebox schemas for records, handovers, chats and the action log, and the one check every boundary uses",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"typebox": "1.3.27"
+	}
+}

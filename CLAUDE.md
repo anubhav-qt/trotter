@@ -2,6 +2,8 @@
 
 Personal algorithmic trading for NSE equities (swing trades, paper trading first), run entirely on the owner's PC. Every AI agent here is named Trotter.
 
+**The goal** ([ADR 0016](docs/adr/0016-the-goal.md)): a fully autonomous harness, working with any capable model, that swing trades better than humans and finance professionals. Not a compute race with quant firms: the edge is the harness's data, tools, lessons and auditing.
+
 **This file is the project's memory.** A new session should know everything it needs after reading it. Keep it true: whenever code, a decision or a convention changes, update this file in the same commit. Keep it brief: link to [the engineering standard](docs/ENGINEERING.md) and [the ADRs](docs/adr/README.md) instead of repeating them.
 
 ## How it fits together

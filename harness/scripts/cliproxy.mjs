@@ -24,7 +24,9 @@ function writeConfig() {
 	const apiKey = process.env.CLIPROXY_API_KEY?.trim();
 	const managementKey = process.env.CLIPROXY_MANAGEMENT_KEY?.trim();
 	if (!apiKey || !managementKey) {
-		console.error("Set CLIPROXY_API_KEY and CLIPROXY_MANAGEMENT_KEY in .env.local first (openssl rand -hex 24, each).");
+		console.error(
+			"Set CLIPROXY_API_KEY and CLIPROXY_MANAGEMENT_KEY in .env.local first (openssl rand -hex 24, each).",
+		);
 		process.exit(1);
 	}
 
@@ -58,7 +60,9 @@ function writeConfig() {
 const bin = binaryPath();
 if (!existsSync(bin)) {
 	console.error(`No CLIProxyAPI at ${bin}.`);
-	console.error("Download the release for this machine from https://github.com/router-for-me/CLIProxyAPI/releases and extract it there.");
+	console.error(
+		"Download the release for this machine from https://github.com/router-for-me/CLIProxyAPI/releases and extract it there.",
+	);
 	process.exit(1);
 }
 
@@ -83,7 +87,9 @@ function proxyArgs() {
 
 	const flag = LOGIN_FLAGS[provider];
 	if (!flag) {
-		console.error(`Sign in with one of: ${Object.keys(LOGIN_FLAGS).join(", ")}. For example: npm run cliproxy -- login antigravity`);
+		console.error(
+			`Sign in with one of: ${Object.keys(LOGIN_FLAGS).join(", ")}. For example: npm run cliproxy -- login antigravity`,
+		);
 		process.exit(1);
 	}
 	args.push(flag);

@@ -15,5 +15,5 @@
 		"noEmit": true,
 		"types": ["node"]
 	},
-	"include": ["packages/*/src/**/*.ts", "src/**/*.ts", "scripts/**/*.ts"]
+	"include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "harness/src/**/*.ts", "harness/test/**/*.ts"]
 }

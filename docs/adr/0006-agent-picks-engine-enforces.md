@@ -1,6 +1,6 @@
 # 0006. The agent picks trades; the engine computes and enforces
 
-Status: Accepted
+Status: Accepted; amended by [0013](0013-trader-chat-per-stock-and-trade-master.md)
 Date: 2026-10-11
 
 See also: [ADR index](README.md) · depends on [0002](0002-scope-nse-swing-paper-first.md), [0005](0005-pi-fork-and-cliproxyapi.md)

@@ -6,17 +6,20 @@ Personal algorithmic trading for NSE equities (swing trades, paper trading first
 
 ## How it fits together
 
-- **Daily loop** ([ADR 0006](docs/adr/0006-agent-picks-engine-enforces.md)): the harness gathers and analyses the day's data, the engine turns it into scores and a shortlist, the trading agent picks trades from it, and the engine checks every order against limits it owns.
+- **Daily loop** ([ADR 0006](docs/adr/0006-agent-picks-engine-enforces.md)): the harness gathers and analyses the day's data, the engine turns it into scores and a shortlist, and the engine checks every order against limits it owns.
+- **Trader chats** ([0013](docs/adr/0013-trader-chat-per-stock-and-trade-master.md)): one long-running chat per stock decides whether to trade it, within a budget the engine sets. Only trader chats place orders, each only for its own stock.
+- **Trade Master** ([0013](docs/adr/0013-trader-chat-per-stock-and-trade-master.md)): every market hour, finds patterns across all trades by sector, company type, sentiment and news, and briefs the trader chats and the Lessons chat.
 - **Fully autonomous** ([0011](docs/adr/0011-fully-autonomous-agent.md)): no tool ever asks for approval. The owner-set hard limits and kill switch are the only bounds.
-- **Lessons chat** ([0010](docs/adr/0010-lessons-from-losses.md)): studies every losing trade and keeps a capped set of lessons the trading agent follows.
-- **Auditor chat** ([0012](docs/adr/0012-auditor-chat.md)): reviews the action log, undoes bad changes, hands bad trades back to the trading agent, and tells the Lessons chat why.
+- **Lessons chat** ([0010](docs/adr/0010-lessons-from-losses.md)): studies every losing trade and keeps a capped set of lessons the trader chats follow.
+- **Auditor chat** ([0012](docs/adr/0012-auditor-chat.md)): reviews the action log, undoes bad changes, hands bad trades back to their trader chat, and tells the Lessons chat why.
+- **Compaction** ([0014](docs/adr/0014-every-chat-compacts-itself.md)): at 400,000 tokens every chat saves what isn't stored yet, then keeps only a small summary.
 - **So:** every decision is stored with its reasoning and the data it saw, and every change an agent makes is a versioned record that keeps its previous value.
 - Everything is TypeScript on Node 24, with no build step ([0004](docs/adr/0004-typescript-everywhere.md)).
 
 | Path | What | Status |
 |---|---|---|
 | `packages/pi-ai`, `packages/pi-agent` | Hard fork of pi (MIT, LICENSE kept), trimmed to the 4 APIs CLIProxyAPI serves ([0005](docs/adr/0005-pi-fork-and-cliproxyapi.md)) | Done |
-| `harness/` | The Trotter agent. `.cliproxy/` holds CLIProxyAPI v8.0.23; keys in `.env.local` | Proxy runs; 2 Antigravity accounts signed in. Agent not built |
+| `harness/` | The Trotter agents (trader chats, Trade Master, Lessons, Auditor). `.cliproxy/` holds CLIProxyAPI v8.0.23; keys in `.env.local` | Proxy runs; 2 Antigravity accounts signed in. Agent not built |
 | `trotter_trader/` | The engine: data, scores, risk, paper and live broker, CLI | Not started |
 | `app/` | Trotter, the Tauri v2 desktop app ([0007](docs/adr/0007-tauri-app-and-separate-processes.md)) | Not started |
 | `docs/` | `ENGINEERING.md`, `adr/` | |

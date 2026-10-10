@@ -1,6 +1,6 @@
 # 0013. A trader chat for every stock, and a Trade Master over them
 
-Status: Accepted; amended by [0022](0022-trader-chats-take-their-time.md)
+Status: Accepted; amended by [0022](0022-trader-chats-take-their-time.md), [0025](0025-budgets-learn-in-paper-trading.md)
 Date: 2026-10-11
 
 See also: [ADR index](README.md) · depends on [0006](0006-agent-picks-engine-enforces.md), [0010](0010-lessons-from-losses.md), [0011](0011-fully-autonomous-agent.md), [0012](0012-auditor-chat.md) · amends [0006](0006-agent-picks-engine-enforces.md) and [0012](0012-auditor-chat.md) · depended on by [0014](0014-every-chat-compacts-itself.md)

@@ -20,4 +20,3 @@ With every listed stock in play ([0017](0017-trade-any-listed-stock.md)), the en
 ## Consequences
 
 - Code compares how nominated stocks do against score-shortlisted ones, so it's measured whether nominations add value, and which agents nominate well.
-- Nominations per day are capped (a setting), so they can't flood the subscription limits.

@@ -22,6 +22,4 @@ See also: [ADR index](README.md) · amends [0012](0012-auditor-chat.md) and [001
 
 ## Consequences
 
-- Plans are records with a wake time or condition; code keeps a queue of them and wakes each chat on time.
-- Requests between agents use the subscription limits, so they are counted per chat and capped (a setting), and the Trade Master sees which chats ask most.
-- The Lessons chat can learn from patience too: plans that waited well and plans that waited too long are both on record.
+- Plans are records with a wake time or condition; code keeps a queue of them and wakes each chat on time.- The Lessons chat can learn from patience too: plans that waited well and plans that waited too long are both on record.

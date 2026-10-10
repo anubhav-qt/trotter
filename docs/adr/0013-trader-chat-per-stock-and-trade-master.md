@@ -41,6 +41,6 @@ See also: [ADR index](README.md) · depends on [0006](0006-agent-picks-engine-en
 
 ## Consequences
 
-- Many chats share the subscription limits. Trader chats run a few at a time, the local GPU models do the bulk news work, and model usage is tracked per chat.
+- Many chats share the subscription limits; the local GPU models do the bulk news work.
 - Storage needs chats as records: each has a role (trader, Trade Master, Lessons, Auditor) and, for a trader, its stock.
 - The Lessons chat now learns from winners too, through the Trade Master's patterns. There is still one shared set of lessons; a lesson can name the sectors it applies to.

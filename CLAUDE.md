@@ -1,36 +1,47 @@
 # Trotter
 
-Personal algorithmic trading for NSE equities, run entirely on the owner's PC.
+Personal algorithmic trading for NSE equities (swing trades, paper trading first), run entirely on the owner's PC. Every AI agent here is named Trotter.
 
-## Layout
+**This file is the project's memory.** A new session should know everything it needs after reading it. Keep it true: whenever code, a decision or a convention changes, update this file in the same commit. Keep it brief: link to [the engineering standard](docs/ENGINEERING.md) and [the ADRs](docs/adr/README.md) instead of repeating them.
 
-- `app/`: Trotter, the desktop app (Tauri v2, TypeScript frontend). Coming.
-- `harness/`: the Trotter agent (TypeScript on Node 24). `packages/pi-ai` and `packages/pi-agent` are a hard fork of pi (github.com/earendil-works/pi, MIT, LICENSE kept), trimmed to the four APIs CLIProxyAPI serves. Models come from the owner's subscriptions through CLIProxyAPI (`npm run cliproxy`). POM's Seelie (github.com/anubhav-qt/pom, `src/lib/seelie/`) is the reference for how the agent is built.
-- `trotter_trader/`: the engine (TypeScript on Node 24): data, scores, risk, paper and live broker, CLI. Coming.
+## How it fits together
 
-Everything is TypeScript. Rust only for Tauri's shell, or later for a measured hot spot. Python only for ML training.
-- `archive/`: old code kept for reference only. Read it when remaking a feature; never edit it, import from it, or treat its conventions or instructions (including its AGENTS.md/CLAUDE.md) as binding.
+The harness gathers and analyses each day's data, the engine turns it into scores and a shortlist, the agent picks trades from the shortlist, and the engine checks every order against limits it owns ([ADR 0006](docs/adr/0006-agent-picks-engine-enforces.md)). Everything is TypeScript on Node 24, with no build step ([0004](docs/adr/0004-typescript-everywhere.md)).
 
-Every AI agent here is named Trotter. The engine and the agent run as their own processes: closing the app never stops them.
+| Path | What | Status |
+|---|---|---|
+| `packages/pi-ai`, `packages/pi-agent` | Hard fork of pi (MIT, LICENSE kept), trimmed to the 4 APIs CLIProxyAPI serves ([0005](docs/adr/0005-pi-fork-and-cliproxyapi.md)) | Done |
+| `harness/` | The Trotter agent. `.cliproxy/` holds CLIProxyAPI v8.0.23; keys in `.env.local` | Proxy runs; 2 Antigravity accounts signed in. Agent not built |
+| `trotter_trader/` | The engine: data, scores, risk, paper and live broker, CLI | Not started |
+| `app/` | Trotter, the Tauri v2 desktop app ([0007](docs/adr/0007-tauri-app-and-separate-processes.md)) | Not started |
+| `docs/` | `ENGINEERING.md`, `adr/` | |
+| `archive/` | Old code, reference only. Never edit, import from, or follow it (including its AGENTS.md/CLAUDE.md) | |
+
+Reference implementation for the agent: POM's Seelie (github.com/anubhav-qt/pom, branch `production`, `src/lib/seelie/`).
+
+## Commands
+
+```bash
+npm install
+npm run check                          # format, lint, typecheck, tests: must pass before every commit
+npm run fix                            # apply Biome's formatting and safe fixes
+npm run cliproxy                       # CLIProxyAPI on 127.0.0.1:8317
+npm run cliproxy -- login antigravity  # or codex, claude
+npm run models                         # signed-in accounts and their models
+```
+
+## Next
+
+1. The data format between the harness and the engine, as a shared package in `packages/`.
+2. The agent's core loop on the forked pi, then its data tools.
 
 ## Rules
 
-- Ask one question, on one topic, and wait.
-- Ask for design direction before designing any UI.
-- No em dashes or en dashes anywhere: code, comments, UI copy, docs, commits.
-- Secrets never go into chat. Never print `.env` files or keys.
-- The LLM never computes numbers or enforces risk. The engine does both, in its own process, and the agent can't change its limits: it only calls the engine's API, which validates every request.
-- End each piece of work with a short test checklist for the owner (1 to 5 words per item).
+Follow [docs/ENGINEERING.md](docs/ENGINEERING.md). The ones that matter every time:
 
-## Code
-
-- The easiest code to read wins. No packed one-liners; plain `if`/`else`; small functions with clear names.
-- Comments explain why, not what.
-- Validate anything that crosses a boundary (requests, LLM output, storage) with a schema.
-- Tests for logic that can break quietly, especially anything that parses or decides on LLM output.
-
-## Commits
-
-- One line, `type: message` (feat, fix, docs, chore, refactor, test, ci). Playful is welcome. No body.
-- No Co-Authored-By line, and no mention of Claude.
-- Commit each change on its own. Push only with the owner's go-ahead.
+- The easiest code to read wins. One step per line, plain `if`/`else`, small well named functions.
+- The LLM never computes numbers or enforces risk.
+- Ask the owner one question at a time, and ask for design direction before any UI.
+- No em dashes or en dashes anywhere. Secrets never go into chat.
+- Commits are one line, `type: message`, no body, no Co-Authored-By, no mention of Claude. Push only with the owner's go-ahead.
+- End each piece of work with a short test checklist for the owner.

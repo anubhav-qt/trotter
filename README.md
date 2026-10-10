@@ -6,22 +6,20 @@ Trotter is being rebuilt from scratch as a personal algorithmic trading system f
 - **harness**: the Trotter agent, a hard fork of [pi](https://github.com/earendil-works/pi) with models from your own subscriptions through [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI).
 - **trotter_trader**: the engine for data, scores, risk and orders (coming).
 
-Everything is TypeScript on Node 24, with Python only for training models.
+Everything is TypeScript on Node 24, with Python only for training models. How the code is written: [docs/ENGINEERING.md](docs/ENGINEERING.md). Why it is the way it is: [docs/adr](docs/adr/README.md).
 
-## The agent's models
+## Setup
 
-Needs Node 24.
+Needs Node 24. Put the [CLIProxyAPI release](https://github.com/router-for-me/CLIProxyAPI/releases) for your machine in `harness/.cliproxy/bin/` first.
 
 ```bash
-cd harness
 npm install
-cp .env.example .env.local     # then fill both keys: openssl rand -hex 24
-npm run cliproxy               # CLIProxyAPI on 127.0.0.1:8317
-npm run cliproxy -- login antigravity   # or codex, claude; in a second terminal
-npm run models                 # the signed-in accounts and the models they serve
+cp harness/.env.example harness/.env.local   # then fill both keys: openssl rand -hex 24
+npm run cliproxy                             # CLIProxyAPI on 127.0.0.1:8317
+npm run cliproxy -- login antigravity        # or codex, claude; in a second terminal
+npm run models                               # the signed-in accounts and the models they serve
+npm run check                                # format, lint, typecheck, tests
 ```
-
-Put the [CLIProxyAPI release](https://github.com/router-for-me/CLIProxyAPI/releases) for your machine in `harness/.cliproxy/bin/` first.
 
 ## Archive
 

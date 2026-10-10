@@ -1,6 +1,6 @@
 # Trotter
 
-Personal algorithmic trading for NSE equities (swing trades, paper trading first), run entirely on the owner's PC. Every AI agent here is named Trotter.
+Personal algorithmic trading for any stock listed on NSE or BSE (swing trades, paper trading first, [ADR 0017](docs/adr/0017-trade-any-listed-stock.md)), run entirely on the owner's PC. Every AI agent here is named Trotter.
 
 **The goal** ([ADR 0016](docs/adr/0016-the-goal.md)): a fully autonomous harness, working with any capable model, that swing trades better than humans and finance professionals. Not a compute race with quant firms: the edge is the harness's data, tools, lessons and auditing.
 
@@ -51,6 +51,7 @@ Follow [docs/ENGINEERING.md](docs/ENGINEERING.md). The ones that matter every ti
 
 - The easiest code to read wins. One step per line, plain `if`/`else`, small well named functions.
 - The LLM reads and analyses, returning schema-checked JSON; code does every calculation on it and enforces risk.
+- Agents never read each other's raw output: every handover is metrics in a schema plus free text reasoning, validated and stored by code, then rendered into the next agent's input from a template ([0018](docs/adr/0018-agents-hand-over-json.md)).
 - Agent tools are data tools (reach outside Trotter: ask the owner about every unsettled choice before building one) or system tools (Trotter's own records and the engine: design them yourself) ([0015](docs/adr/0015-data-tools-and-system-tools.md)).
 - Ask the owner one question at a time, and ask for design direction before any UI.
 - No em dashes or en dashes anywhere. Secrets never go into chat.

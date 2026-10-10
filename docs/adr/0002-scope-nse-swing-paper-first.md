@@ -1,6 +1,6 @@
 # 0002. NSE cash equities, swing horizon, paper trading first
 
-Status: Accepted
+Status: Accepted; amended by [0017](0017-trade-any-listed-stock.md)
 Date: 2026-10-11
 
 See also: [ADR index](README.md) · depended on by [0006](0006-agent-picks-engine-enforces.md)

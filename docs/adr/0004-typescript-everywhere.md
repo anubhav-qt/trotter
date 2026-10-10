@@ -1,6 +1,6 @@
 # 0004. TypeScript everywhere
 
-Status: Accepted
+Status: Accepted; amended by [0021](0021-reuse-proven-open-source.md)
 Date: 2026-10-11
 
 See also: [ADR index](README.md) · depends on [0001](0001-archive-and-restart.md), [0002](0002-scope-nse-swing-paper-first.md) · depended on by [0009](0009-one-workspace-biome-node-test.md)

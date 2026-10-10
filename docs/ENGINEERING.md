@@ -46,7 +46,8 @@ The most beautiful code is the easiest to read and still does the job just as we
 
 ## 6. Dependencies
 
-- Prefer Node built-ins. Every new dependency needs a reason in its commit.
+- Reuse proven open source before writing our own ([ADR 0021](adr/0021-reuse-proven-open-source.md)): we build only Trotter's new logic. A tool in another language runs as its own process behind a schema-checked boundary.
+- For small things, prefer Node built-ins over a dependency. Every new dependency needs a reason in its commit.
 - Pin exact versions (`.npmrc` has `save-exact`). Don't take a release younger than two weeks unless it fixes something we need.
 - `packages/pi-ai` and `packages/pi-agent` are a hard fork of pi: change them freely, keep their LICENSE, and mark our changes with a short `// Trotter:` comment.
 

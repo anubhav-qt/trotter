@@ -8,7 +8,7 @@ Personal algorithmic trading for any stock listed on NSE or BSE (swing trades, p
 
 ## How it fits together
 
-- **Daily loop** ([ADR 0006](docs/adr/0006-agent-picks-engine-enforces.md)): the harness gathers and analyses the day's data, the engine turns it into scores and a shortlist, and the engine checks every order against limits it owns.
+- **Daily loop** ([ADR 0006](docs/adr/0006-agent-picks-engine-enforces.md)): the harness gathers and analyses the day's data, the engine turns it into scores and a shortlist (plus stocks agents nominate, [0019](docs/adr/0019-agents-nominate-stocks.md)), and the engine checks every order against limits it owns.
 - **Trader chats** ([0013](docs/adr/0013-trader-chat-per-stock-and-trade-master.md)): one long-running chat per stock decides whether to trade it, within a budget the engine sets. Only trader chats place orders, each only for its own stock.
 - **Trade Master** ([0013](docs/adr/0013-trader-chat-per-stock-and-trade-master.md)): every market hour, finds patterns across all trades by sector, company type, sentiment and news, and briefs the trader chats and the Lessons chat.
 - **Fully autonomous** ([0011](docs/adr/0011-fully-autonomous-agent.md)): no tool ever asks for approval. The owner-set hard limits and kill switch are the only bounds.
@@ -24,7 +24,8 @@ Personal algorithmic trading for any stock listed on NSE or BSE (swing trades, p
 | `harness/` | The Trotter agents (trader chats, Trade Master, Lessons, Auditor). `.cliproxy/` holds CLIProxyAPI v8.0.23; keys in `.env.local` | Proxy runs; 2 Antigravity accounts signed in. Agent not built |
 | `trotter_trader/` | The engine: data, scores, risk, paper and live broker, CLI | Not started |
 | `app/` | Trotter, the Tauri v2 desktop app ([0007](docs/adr/0007-tauri-app-and-separate-processes.md)) | Not started |
-| `docs/` | `ENGINEERING.md`, `adr/` | |
+| `prompts/` | Every agent prompt, as Nunjucks templates; no prompt text in code ([0020](docs/adr/0020-prompts-as-nunjucks-templates.md)) | Not started |
+| `docs/` | `ENGINEERING.md`, `DATA.md` (what the data tools fetch and why), `adr/` | |
 | `archive/` | Old code, reference only. Never edit, import from, or follow it (including its AGENTS.md/CLAUDE.md) | |
 
 Reference implementation for the agent: POM's Seelie (github.com/anubhav-qt/pom, branch `production`, `src/lib/seelie/`).
@@ -51,6 +52,7 @@ Follow [docs/ENGINEERING.md](docs/ENGINEERING.md). The ones that matter every ti
 
 - The easiest code to read wins. One step per line, plain `if`/`else`, small well named functions.
 - The LLM reads and analyses, returning schema-checked JSON; code does every calculation on it and enforces risk.
+- Reuse proven open source for everything that isn't Trotter's own logic; a tool in another language runs as its own process ([0021](docs/adr/0021-reuse-proven-open-source.md)).
 - Agents never read each other's raw output: every handover is metrics in a schema plus free text reasoning, validated and stored by code, then rendered into the next agent's input from a template ([0018](docs/adr/0018-agents-hand-over-json.md)).
 - Agent tools are data tools (reach outside Trotter: ask the owner about every unsettled choice before building one) or system tools (Trotter's own records and the engine: design them yourself) ([0015](docs/adr/0015-data-tools-and-system-tools.md)).
 - Ask the owner one question at a time, and ask for design direction before any UI.

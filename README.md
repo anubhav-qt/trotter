@@ -16,6 +16,7 @@ npm install
 cp .env.example .env.local     # then fill both keys: openssl rand -hex 24
 npm run cliproxy               # CLIProxyAPI on 127.0.0.1:8317
 npm run cliproxy -- login antigravity   # or codex, claude; in a second terminal
+npm run models                 # the signed-in accounts and the models they serve
 ```
 
 Put the [CLIProxyAPI release](https://github.com/router-for-me/CLIProxyAPI/releases) for your machine in `harness/.cliproxy/bin/` first.

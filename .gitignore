@@ -11,6 +11,9 @@ node_modules/
 # Local data, databases and model caches
 /data/
 
+# CLIProxyAPI's binary, config and signed-in accounts
+.cliproxy/
+
 # OS
 .DS_Store
 Thumbs.db

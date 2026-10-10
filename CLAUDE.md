@@ -12,7 +12,7 @@ Personal algorithmic trading for any stock listed on NSE or BSE (swing trades, p
 - **Trader chats** ([0013](docs/adr/0013-trader-chat-per-stock-and-trade-master.md)): one long-running chat per stock decides whether to trade it, within a budget the engine sets. Only trader chats place orders, each only for its own stock. Nothing forces one to act: it can think, ask other agents and tools for more, then act, plan and wait, or pass ([0022](docs/adr/0022-trader-chats-take-their-time.md)).
 - **Trade Master** ([0013](docs/adr/0013-trader-chat-per-stock-and-trade-master.md)): every market hour, finds patterns across all trades by sector, company type, sentiment and news, and briefs the trader chats and the Lessons chat.
 - **Fully autonomous** ([0011](docs/adr/0011-fully-autonomous-agent.md)): no tool ever asks for approval. The owner-set hard limits and kill switch are the only bounds.
-- **Lessons chat** ([0010](docs/adr/0010-lessons-from-losses.md)): studies every losing trade and keeps a capped set of lessons the trader chats follow.
+- **Lessons chat** ([0010](docs/adr/0010-lessons-from-losses.md)): studies every losing trade and keeps the lessons the trader chats follow.
 - **Auditor chat** ([0012](docs/adr/0012-auditor-chat.md)): reviews the action log, undoes bad changes, hands bad trades back to their trader chat, and tells the Lessons chat why.
 - **Compaction** ([0014](docs/adr/0014-every-chat-compacts-itself.md)): at 400,000 tokens every chat saves what isn't stored yet, then keeps only a small summary.
 - **So:** every decision is stored with its reasoning and the data it saw, and every change an agent makes is a versioned record that keeps its previous value.
